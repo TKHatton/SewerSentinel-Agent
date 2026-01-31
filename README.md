@@ -26,7 +26,7 @@ SewerSentinel leverages Gemini 3's most advanced capabilities:
 | Feature | Usage |
 |---------|-------|
 | **Multimodal Vision** | Analyze CCTV footage with spatial and temporal reasoning |
-| **Thinking Levels** | Deep causal reasoning about degradation factors and failure timelines (`thinking_level="high"`) |
+| **Deep Reasoning** | Causal reasoning about degradation factors and failure timelines |
 | **Large Context** | Process detailed PACP standards and pipe inspection histories |
 | **JSON Mode** | Structured output for reliable defect classification |
 
@@ -164,9 +164,9 @@ The dataset is not included due to size and licensing (CC BY-NC-SA).
 ┌──────────────────────────────────────────────────────────────┐
 │                     SEWERSENTINEL AGENT                       │
 ├──────────────────────────────────────────────────────────────┤
-│  Input Layer          │  Gemini 3 Analysis   │  Output Layer │
+│  Input Layer          │  Gemini Analysis     │  Output Layer │
 │  ├─ Video Ingestion   │  ├─ Multimodal       │  ├─ Dashboard │
-│  ├─ Context Data      │  ├─ Thinking Levels  │  ├─ Reports   │
+│  ├─ Context Data      │  ├─ Deep Reasoning   │  ├─ Reports   │
 │  └─ Image Upload      │  └─ JSON Parsing     │  └─ API       │
 ├──────────────────────────────────────────────────────────────┤
 │  Prediction Engine    │  Prioritization      │               │
@@ -180,7 +180,7 @@ The dataset is not included due to size and licensing (CC BY-NC-SA).
 
 | Criterion | Weight | How SewerSentinel Delivers |
 |-----------|--------|---------------------------|
-| Technical Execution | 40% | Gemini 3 multimodal + thinking levels for deep analysis |
+| Technical Execution | 40% | Gemini multimodal vision + engineering-based failure prediction |
 | Innovation/Wow | 30% | First system to predict failure timelines, not just detect |
 | Potential Impact | 20% | Prevents catastrophes, saves cities millions |
 | Presentation | 10% | Professional dashboard, clear problem statement |

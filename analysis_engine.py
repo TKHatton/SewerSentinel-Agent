@@ -426,40 +426,40 @@ Provide your prediction ONLY in JSON format (no other text):
 
 IMPORTANT: Always provide numeric values for all fields. Never return 0 for costs or risk scores."""
 
-def _call_gemini_with_retry(
-    self,
-    contents: List[Any],
-    use_thinking: bool = False,
-    max_retries: int = 3,
-    retry_delay: float = 2.0
-) -> str:
-    """
-    Call Gemini API with retry logic.
-    Note: thinking_config removed due to compatibility issues with gemini-3-flash-preview
-    """
-    last_error = None
-    
-    for attempt in range(max_retries):
-        try:
-            # Simple API call without any config
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=contents
-            )
+    def _call_gemini_with_retry(
+        self,
+        contents: List[Any],
+        use_thinking: bool = False,
+        max_retries: int = 3,
+        retry_delay: float = 2.0
+    ) -> str:
+        """
+        Call Gemini API with retry logic.
+        Note: thinking_config removed due to compatibility issues with gemini-3-flash-preview
+        """
+        last_error = None
 
-            if response and response.text:
-                return response.text
-            else:
-                raise ValueError("Empty response from Gemini API")
+        for attempt in range(max_retries):
+            try:
+                # Simple API call without any config
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents
+                )
 
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Gemini API call failed (attempt {attempt + 1}/{max_retries}): {e}")
-            
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay * (attempt + 1))
+                if response and response.text:
+                    return response.text
+                else:
+                    raise ValueError("Empty response from Gemini API")
 
-    raise RuntimeError(f"Gemini API call failed after {max_retries} attempts: {last_error}")
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Gemini API call failed (attempt {attempt + 1}/{max_retries}): {e}")
+
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay * (attempt + 1))
+
+        raise RuntimeError(f"Gemini API call failed after {max_retries} attempts: {last_error}")
 
     def analyze_image(self, image_path: str, pipe_id: str = "unknown") -> Dict[str, Any]:
         """
@@ -635,15 +635,15 @@ def _call_gemini_with_retry(
         pipe_id = analysis_result.get("pipe_id", "unknown")
         logger.info(f"Predicting degradation for pipe: {pipe_id}")
 
-        # Extract context values
+        # Extract context values (use 'or' to handle None values)
         current_grade = analysis_result.get("overall_grade", 1) or 1
-        diameter = context.get('pipe_diameter_inches', 12)
-        material = context.get('pipe_material', 'unknown')
-        depth = context.get('depth_feet', 8.0)
-        location_type = context.get('location_type', 'residential')
-        traffic_load = context.get('traffic_load', 'medium')
-        pipe_age = context.get('pipe_age_years', 30)
-        soil_type = context.get('soil_type', 'unknown')
+        diameter = context.get('pipe_diameter_inches') or 12
+        material = context.get('pipe_material') or 'unknown'
+        depth = context.get('depth_feet') or 8.0
+        location_type = context.get('location_type') or 'residential'
+        traffic_load = context.get('traffic_load') or 'medium'
+        pipe_age = context.get('pipe_age_years') or 30
+        soil_type = context.get('soil_type') or 'unknown'
 
         # Get defects
         defects = analysis_result.get("defects", []) or analysis_result.get("unique_defects", [])

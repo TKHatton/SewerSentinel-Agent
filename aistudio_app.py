@@ -815,13 +815,13 @@ def main():
         st.markdown("""
         **SewerSentinel** is an autonomous infrastructure prediction system that:
 
-        1. **Detects** defects in CCTV pipe inspection footage using Gemini 3's multimodal vision
-        2. **Predicts** degradation trajectories using deep reasoning (thinking_level="high")
+        1. **Detects** defects in CCTV pipe inspection footage using Gemini's multimodal vision
+        2. **Predicts** degradation trajectories using deep reasoning and engineering formulas
         3. **Prioritizes** repairs based on risk scores and cost-benefit analysis
 
-        ### Gemini 3 Features Used
+        ### Gemini Features Used
         - **Multimodal Vision** - Analyzes pipe inspection images
-        - **Thinking Levels** - Deep causal reasoning for predictions
+        - **Deep Reasoning** - Causal reasoning for failure predictions
         - **Large Context** - Processes detailed PACP standards
         - **JSON Mode** - Structured output for reliable parsing
 
