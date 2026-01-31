@@ -172,6 +172,136 @@ class AnalysisResult:
     raw_analysis: Dict[str, Any] = field(default_factory=dict)
 
 
+def calculate_repair_cost(
+    grade: int,
+    diameter_inches: int,
+    pipe_material: str,
+    depth_feet: float = 8.0
+) -> float:
+    """
+    Calculate estimated proactive repair cost based on pipe characteristics.
+
+    Formula:
+    - Base repair cost = $2,000 + (diameter * $100) + (grade * $2,000)
+    - Material multiplier: concrete=1.0, clay=1.2, cast_iron=1.5, pvc=0.8, hdpe=0.7
+    - Depth multiplier: 1.0 + (depth_feet - 8) * 0.05 (every foot above/below 8ft adds 5%)
+    """
+    # Base cost
+    base_cost = 2000 + (diameter_inches * 100) + (grade * 2000)
+
+    # Material multiplier
+    material_multipliers = {
+        "concrete": 1.0,
+        "clay": 1.2,
+        "cast_iron": 1.5,
+        "pvc": 0.8,
+        "hdpe": 0.7,
+        "unknown": 1.0
+    }
+    material_mult = material_multipliers.get(pipe_material.lower(), 1.0)
+
+    # Depth multiplier (deeper = more expensive)
+    depth_mult = 1.0 + max(0, (depth_feet - 8) * 0.05)
+
+    return round(base_cost * material_mult * depth_mult, 2)
+
+
+def calculate_emergency_cost(
+    repair_cost: float,
+    location_type: str,
+    traffic_load: str
+) -> float:
+    """
+    Calculate estimated emergency failure cost.
+
+    Emergency multiplier based on location type:
+    - school/hospital: 8x (high public health risk)
+    - residential: 6x (property damage, health concerns)
+    - commercial: 5x (business disruption)
+    - industrial: 4x (operational disruption)
+
+    Traffic load adds additional multiplier:
+    - heavy: +50%
+    - medium: +25%
+    - light: +10%
+    - none: +0%
+    """
+    # Location multipliers
+    location_multipliers = {
+        "school": 8.0,
+        "hospital": 8.0,
+        "residential": 6.0,
+        "commercial": 5.0,
+        "industrial": 4.0
+    }
+    location_mult = location_multipliers.get(location_type.lower(), 5.0)
+
+    # Traffic load additional multiplier
+    traffic_multipliers = {
+        "heavy": 1.5,
+        "medium": 1.25,
+        "light": 1.1,
+        "none": 1.0
+    }
+    traffic_mult = traffic_multipliers.get(traffic_load.lower(), 1.0)
+
+    return round(repair_cost * location_mult * traffic_mult, 2)
+
+
+def calculate_risk_score(
+    current_grade: int,
+    time_to_failure_months: Optional[int],
+    location_type: str
+) -> float:
+    """
+    Calculate risk score (0-100) based on multiple factors.
+
+    Formula:
+    - Current grade (40% weight): (grade / 5) * 40
+    - Time to failure (30% weight): time_factor * 30
+      - <6 months: 1.0
+      - <12 months: 0.7
+      - <24 months: 0.4
+      - else: 0.2
+    - Location consequence (30% weight): location_factor * 30
+      - school/hospital: 1.0
+      - residential: 0.7
+      - commercial: 0.5
+      - industrial: 0.3
+    """
+    # Grade component (40% weight)
+    grade_component = (current_grade / 5.0) * 40.0
+
+    # Time to failure component (30% weight)
+    if time_to_failure_months is None:
+        # Estimate based on grade if no time provided
+        time_estimates = {1: 120, 2: 84, 3: 48, 4: 18, 5: 6}
+        time_to_failure_months = time_estimates.get(current_grade, 60)
+
+    if time_to_failure_months <= 6:
+        time_factor = 1.0
+    elif time_to_failure_months <= 12:
+        time_factor = 0.7
+    elif time_to_failure_months <= 24:
+        time_factor = 0.4
+    else:
+        time_factor = 0.2
+    time_component = time_factor * 30.0
+
+    # Location consequence component (30% weight)
+    location_factors = {
+        "school": 1.0,
+        "hospital": 1.0,
+        "residential": 0.7,
+        "commercial": 0.5,
+        "industrial": 0.3
+    }
+    location_factor = location_factors.get(location_type.lower(), 0.5)
+    location_component = location_factor * 30.0
+
+    return round(grade_component + time_component + location_component, 1)
+
+
 class SewerSentinelEngine:
     """
     Main analysis engine using Gemini 3 for pipe inspection analysis.
@@ -238,6 +368,17 @@ Grade definitions:
 - Grade 4: Significant defect, repair within 1-2 years
 - Grade 5: Critical defect, immediate attention required
 
+Also identify pipe characteristics from visual appearance:
+- Pipe material: Look for texture/color cues:
+  * Concrete: Gray, rough texture, may show aggregate
+  * Vitrified clay: Brown/red, smooth glazed surface, visible joints
+  * PVC: White/gray, smooth plastic appearance
+  * Cast iron: Dark gray/black, may show rust/corrosion
+  * Brick: Red/brown rectangular blocks with mortar joints
+  * HDPE: Black, smooth plastic surface
+- Estimated diameter: Based on perspective and camera field of view
+- Water level: Percentage of pipe diameter covered by flow
+
 For the image provided, respond ONLY in JSON format (no other text):
 {
     "defects": [
@@ -252,8 +393,10 @@ For the image provided, respond ONLY in JSON format (no other text):
     ],
     "overall_assessment": "Summary of pipe condition",
     "overall_grade": 1-5,
-    "pipe_material_observed": "concrete/clay/pvc/etc",
-    "water_level": "estimated percentage of pipe diameter"
+    "pipe_material_observed": "concrete/clay/pvc/cast_iron/brick/hdpe/unknown",
+    "pipe_material_confidence": 0.0-1.0,
+    "estimated_diameter_inches": estimated diameter or null if uncertain,
+    "water_level_percent": estimated percentage (0-100) or null
 }"""
 
         self.prediction_prompt = """You are SewerSentinel's prediction engine. Based on the defects detected and contextual information provided, predict the degradation trajectory of this pipe segment.
@@ -308,7 +451,7 @@ Provide your prediction ONLY in JSON format (no other text):
         config = None
         if use_thinking:
             config = types.GenerateContentConfig(
-                thinking_level="high"
+                thinking_config=types.ThinkingConfig(thinking_level="high")
             )
 
         last_error = None
@@ -570,44 +713,90 @@ Overall Assessment: {analysis_result.get('overall_assessment', 'N/A')}
             "Please analyze this pipe's degradation trajectory. Think deeply about the causal factors and provide your prediction."
         ]
 
+        # Extract context values for fallback calculations
+        current_grade = analysis_result.get("overall_grade", 1)
+        diameter = context.get('pipe_diameter_inches', 12)
+        material = context.get('pipe_material', 'unknown')
+        depth = context.get('depth_feet', 8.0)
+        location_type = context.get('location_type', 'residential')
+        traffic_load = context.get('traffic_load', 'medium')
+
         try:
             # Use thinking_level="high" for deep reasoning
             response_text = self._call_gemini_with_retry(contents, use_thinking=True)
             prediction_data = _parse_json_response(response_text)
 
+            # Get values from Gemini response
+            gemini_grade = prediction_data.get("current_grade", current_grade)
+            time_to_failure = prediction_data.get("estimated_time_to_failure_months")
+            gemini_risk = prediction_data.get("failure_risk_score", 0)
+            gemini_repair_cost = prediction_data.get("cost_estimate_repair", 0)
+            gemini_emergency_cost = prediction_data.get("cost_estimate_emergency", 0)
+
+            # Use fallback calculations if Gemini returns 0 or missing values
+            if gemini_risk == 0 or gemini_risk is None:
+                gemini_risk = calculate_risk_score(gemini_grade, time_to_failure, location_type)
+
+            if gemini_repair_cost == 0 or gemini_repair_cost is None:
+                gemini_repair_cost = calculate_repair_cost(gemini_grade, diameter, material, depth)
+
+            if gemini_emergency_cost == 0 or gemini_emergency_cost is None:
+                gemini_emergency_cost = calculate_emergency_cost(gemini_repair_cost, location_type, traffic_load)
+
             return PredictionResult(
                 pipe_id=pipe_id,
-                current_grade=prediction_data.get("current_grade", analysis_result.get("overall_grade", 1)),
-                predicted_grade_6_months=prediction_data.get("predicted_grade_6_months", 1),
-                predicted_grade_12_months=prediction_data.get("predicted_grade_12_months", 1),
-                estimated_time_to_failure_months=prediction_data.get("estimated_time_to_failure_months"),
-                failure_risk_score=prediction_data.get("failure_risk_score", 0),
+                current_grade=gemini_grade,
+                predicted_grade_6_months=prediction_data.get("predicted_grade_6_months", min(gemini_grade + 1, 5)),
+                predicted_grade_12_months=prediction_data.get("predicted_grade_12_months", min(gemini_grade + 1, 5)),
+                estimated_time_to_failure_months=time_to_failure,
+                failure_risk_score=gemini_risk,
                 contributing_factors=prediction_data.get("contributing_factors", []),
                 recommended_action=prediction_data.get("recommended_action", "Manual review required"),
                 priority_rank=0,  # Will be set during batch prioritization
-                cost_estimate_repair=prediction_data.get("cost_estimate_repair", 0),
-                cost_estimate_emergency=prediction_data.get("cost_estimate_emergency", 0),
-                confidence_interval=prediction_data.get("confidence_interval", "unknown"),
+                cost_estimate_repair=gemini_repair_cost,
+                cost_estimate_emergency=gemini_emergency_cost,
+                confidence_interval=prediction_data.get("confidence_interval", "±6 months"),
                 reasoning=prediction_data.get("reasoning", "")
             )
 
         except Exception as e:
             logger.error(f"Prediction failed for {pipe_id}: {e}")
+
+            # Calculate fallback values for error case
+            fallback_risk = calculate_risk_score(current_grade, None, location_type)
+            fallback_repair = calculate_repair_cost(current_grade, diameter, material, depth)
+            fallback_emergency = calculate_emergency_cost(fallback_repair, location_type, traffic_load)
+
+            # Estimate time to failure based on grade
+            time_estimates = {1: 120, 2: 84, 3: 48, 4: 18, 5: 6}
+            estimated_time = time_estimates.get(current_grade, 60)
+
             return PredictionResult(
                 pipe_id=pipe_id,
-                current_grade=analysis_result.get("overall_grade", 1),
-                predicted_grade_6_months=analysis_result.get("overall_grade", 1),
-                predicted_grade_12_months=analysis_result.get("overall_grade", 1),
-                estimated_time_to_failure_months=None,
-                failure_risk_score=0,
-                contributing_factors=["Error in prediction"],
-                recommended_action="Manual review required - prediction failed",
+                current_grade=current_grade,
+                predicted_grade_6_months=min(current_grade + 1, 5),
+                predicted_grade_12_months=min(current_grade + 1, 5),
+                estimated_time_to_failure_months=estimated_time,
+                failure_risk_score=fallback_risk,
+                contributing_factors=[f"Grade {current_grade} defects detected", f"Located near {location_type} area"],
+                recommended_action=self._get_fallback_recommendation(current_grade),
                 priority_rank=0,
-                cost_estimate_repair=0,
-                cost_estimate_emergency=0,
-                confidence_interval="unknown",
-                reasoning=f"Prediction failed: {str(e)[:200]}"
+                cost_estimate_repair=fallback_repair,
+                cost_estimate_emergency=fallback_emergency,
+                confidence_interval="±12 months (estimated)",
+                reasoning=f"Prediction based on fallback calculations due to API error: {str(e)[:100]}"
             )
+
+    def _get_fallback_recommendation(self, grade: int) -> str:
+        """Get a fallback recommendation based on grade when prediction fails."""
+        recommendations = {
+            1: "Continue routine monitoring. No immediate action required.",
+            2: "Schedule follow-up inspection in 12-18 months. Minor maintenance may be beneficial.",
+            3: "Plan for repair within 2-3 years. Include in next budget cycle.",
+            4: "Schedule repair within 12 months. Prioritize in current maintenance budget.",
+            5: "URGENT: Immediate repair required. Risk of imminent failure. Expedite work order."
+        }
+        return recommendations.get(grade, "Manual review required to determine appropriate action.")
 
     def prioritize_repairs(
         self,

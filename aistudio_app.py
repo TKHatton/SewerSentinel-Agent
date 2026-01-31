@@ -176,6 +176,107 @@ def get_engine():
         return None
 
 
+def get_demo_result():
+    """Generate a realistic demo analysis result for showcasing the UI."""
+    from analysis_engine import AnalysisResult, DetectedDefect, PredictionResult
+
+    # Create sample defects
+    defects = [
+        DetectedDefect(
+            defect_type="Circumferential Crack",
+            defect_code="CC",
+            grade=4,
+            location_in_pipe="12 o'clock position",
+            confidence=0.92,
+            description="Significant circumferential crack spanning approximately 40% of pipe circumference. Crack width estimated at 5-8mm with visible separation."
+        ),
+        DetectedDefect(
+            defect_type="Root Intrusion (Medium)",
+            defect_code="RM",
+            grade=3,
+            location_in_pipe="3 o'clock position",
+            confidence=0.88,
+            description="Medium root intrusion penetrating through joint at 3 o'clock. Roots extending approximately 15cm into pipe flow area."
+        ),
+        DetectedDefect(
+            defect_type="Infiltration",
+            defect_code="I",
+            grade=3,
+            location_in_pipe="12 o'clock position (at crack)",
+            confidence=0.85,
+            description="Active infiltration observed at crack location. Water seepage indicates high groundwater pressure."
+        ),
+        DetectedDefect(
+            defect_type="Corrosion",
+            defect_code="COR",
+            grade=2,
+            location_in_pipe="Floor (6 o'clock)",
+            confidence=0.78,
+            description="Moderate surface corrosion on pipe floor, likely due to hydrogen sulfide exposure. Approximately 10% wall loss observed."
+        )
+    ]
+
+    # Create prediction result
+    prediction = PredictionResult(
+        pipe_id="DEMO-PIPE-001",
+        current_grade=4,
+        predicted_grade_6_months=4,
+        predicted_grade_12_months=5,
+        estimated_time_to_failure_months=14,
+        failure_risk_score=78.5,
+        contributing_factors=[
+            "Grade 4 circumferential crack with active infiltration",
+            "Root intrusion accelerating joint deterioration",
+            "High groundwater pressure increasing stress on crack",
+            "Pipe age (45 years) exceeding typical concrete lifespan",
+            "Heavy traffic load causing cyclic stress",
+            "Clay soil promoting differential settlement"
+        ],
+        recommended_action="Schedule repair within 6-9 months. Recommend CIPP lining for crack remediation and root cutting. Monitor infiltration monthly until repair.",
+        priority_rank=1,
+        cost_estimate_repair=18500.0,
+        cost_estimate_emergency=142500.0,
+        confidence_interval="±4 months",
+        reasoning="""This pipe shows multiple interacting defects that create a compound failure risk.
+
+The circumferential crack at 12 o'clock is the primary concern - at Grade 4 severity with 5-8mm width, it indicates significant structural compromise. The crack's location at the crown means it bears the full soil and traffic load above.
+
+The active infiltration through this crack suggests the surrounding soil is saturated, which:
+1. Increases hydrostatic pressure on the crack
+2. May cause soil erosion and void formation around the pipe
+3. Accelerates the freeze-thaw cycle damage in winter months
+
+The medium root intrusion at 3 o'clock indicates a compromised joint that will worsen over time. Roots grow toward moisture, and the infiltration will accelerate root growth.
+
+The floor corrosion, while currently Grade 2, indicates hydrogen sulfide attack which can progress rapidly if flow conditions change.
+
+Given the 45-year pipe age, concrete strength has likely degraded 20-30% from original specifications. Combined with heavy traffic load creating cyclic stress, I predict progression to Grade 5 within 12-14 months if untreated.
+
+Cost analysis: Proactive CIPP rehabilitation ($18,500) vs emergency dig-and-replace after collapse under roadway ($142,500 including traffic control, emergency response, environmental cleanup, and expedited materials)."""
+    )
+
+    # Create full analysis result
+    return AnalysisResult(
+        pipe_id="DEMO-PIPE-001",
+        inspection_date=datetime.now().strftime("%Y-%m-%d"),
+        defects=defects,
+        overall_grade=4,
+        quick_rating="0102",
+        prediction=prediction,
+        executive_summary="This 45-year-old concrete pipe shows significant structural damage requiring prompt attention. A Grade 4 crack at the crown combined with active water infiltration and root intrusion creates high failure risk. Without repair within 9 months, there is substantial risk of collapse under the roadway. Proactive repair will save an estimated $124,000 compared to emergency response.",
+        analysis_timestamp=datetime.now().isoformat(),
+        raw_analysis={
+            "demo_mode": True,
+            "auto_detected": {
+                "material": "concrete",
+                "material_confidence": 0.91,
+                "diameter": 18,
+                "water_level": 25
+            }
+        }
+    )
+
+
 def main():
     # Header
     st.markdown("""
@@ -273,7 +374,36 @@ def main():
             help="Upload a CCTV pipe inspection image for analysis"
         )
 
+        # Demo mode - show when no file is uploaded
+        if not uploaded_file:
+            st.divider()
+            st.markdown("**No image? Try our demo to explore the features:**")
+
+            demo_col1, demo_col2 = st.columns([1, 2])
+            with demo_col1:
+                if st.button("🎯 Try Demo", type="secondary", use_container_width=True):
+                    try:
+                        demo_result = get_demo_result()
+                        st.session_state['analysis_result'] = demo_result
+                        st.session_state['demo_mode'] = True
+                        st.success("Demo loaded! Check the Results tab to explore.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to load demo: {e}")
+
+            with demo_col2:
+                st.caption(
+                    "The demo shows a realistic analysis of a 45-year-old concrete pipe "
+                    "with multiple defects, failure predictions, and cost-benefit analysis."
+                )
+
+            # Show demo indicator if in demo mode
+            if st.session_state.get('demo_mode'):
+                st.info("📋 **Demo Mode Active** - Viewing sample analysis data. Upload an image to analyze your own pipe.")
+
         if uploaded_file:
+            # Clear demo mode when uploading a new file
+            st.session_state.pop('demo_mode', None)
             col1, col2 = st.columns([1, 1])
 
             with col1:
@@ -312,12 +442,52 @@ def main():
                                     "location_type": location_type
                                 }
 
-                                # Run full analysis
+                                # First, run detection to get pipe characteristics
+                                detection_result = engine.analyze_image(tmp_path, pipe_id)
+
+                                # Check for auto-detected pipe characteristics
+                                auto_detected = []
+                                detected_material = detection_result.get('pipe_material_observed', 'unknown')
+                                material_confidence = detection_result.get('pipe_material_confidence', 0)
+                                detected_diameter = detection_result.get('estimated_diameter_inches')
+                                detected_water_level = detection_result.get('water_level_percent')
+
+                                # Update context with detected values if confidence is high
+                                if detected_material and detected_material != 'unknown' and material_confidence >= 0.7:
+                                    # Map detected material to dropdown values
+                                    material_map = {
+                                        'concrete': 'concrete',
+                                        'clay': 'clay',
+                                        'vitrified clay': 'clay',
+                                        'pvc': 'pvc',
+                                        'cast_iron': 'cast_iron',
+                                        'cast iron': 'cast_iron',
+                                        'brick': 'concrete',  # Map brick to concrete for similar properties
+                                        'hdpe': 'hdpe'
+                                    }
+                                    mapped_material = material_map.get(detected_material.lower(), pipe_material)
+                                    if mapped_material in ['concrete', 'clay', 'pvc', 'cast_iron', 'hdpe']:
+                                        context['pipe_material'] = mapped_material
+                                        auto_detected.append(f"Material: {mapped_material} ({material_confidence:.0%} confidence)")
+
+                                if detected_diameter and isinstance(detected_diameter, (int, float)) and detected_diameter > 0:
+                                    context['pipe_diameter_inches'] = int(detected_diameter)
+                                    auto_detected.append(f"Diameter: {int(detected_diameter)} inches")
+
+                                # Run full analysis with potentially updated context
                                 result = engine.create_full_analysis(
                                     image_path=tmp_path,
                                     pipe_id=pipe_id,
                                     context=context
                                 )
+
+                                # Store detected characteristics in result for display
+                                result.raw_analysis['auto_detected'] = {
+                                    'material': detected_material,
+                                    'material_confidence': material_confidence,
+                                    'diameter': detected_diameter,
+                                    'water_level': detected_water_level
+                                }
 
                                 # Store result in session state
                                 st.session_state['analysis_result'] = result
@@ -326,10 +496,55 @@ def main():
                                 # Clean up temp file
                                 os.unlink(tmp_path)
 
-                                st.success("Analysis complete! Go to Results tab to see details.")
+                                # Show success message with auto-detection info
+                                if auto_detected:
+                                    st.success(f"Analysis complete! Auto-detected: {', '.join(auto_detected)}")
+                                else:
+                                    st.success("Analysis complete! Go to Results tab to see details.")
 
                             except Exception as e:
-                                st.error(f"Analysis failed: {e}")
+                                error_msg = str(e).lower()
+
+                                # Provide user-friendly error messages
+                                if "api" in error_msg or "key" in error_msg or "authentication" in error_msg:
+                                    st.error("""
+                                    **API Authentication Error**
+
+                                    Please check that your GEMINI_API_KEY is valid and has not expired.
+                                    You can get a new API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+                                    """)
+                                elif "quota" in error_msg or "rate" in error_msg or "limit" in error_msg:
+                                    st.error("""
+                                    **Rate Limit Exceeded**
+
+                                    The API rate limit has been reached. Please wait a moment and try again.
+                                    If this persists, consider upgrading your API plan.
+                                    """)
+                                elif "timeout" in error_msg or "timed out" in error_msg:
+                                    st.error("""
+                                    **Request Timeout**
+
+                                    The analysis request timed out. This can happen with large images or high API load.
+                                    Please try again, or try with a smaller image.
+                                    """)
+                                elif "parse" in error_msg or "json" in error_msg:
+                                    st.warning("""
+                                    **Partial Analysis Complete**
+
+                                    The AI response couldn't be fully parsed. This sometimes happens with complex images.
+                                    Try analyzing again - results may vary between attempts.
+                                    """)
+                                else:
+                                    st.error(f"""
+                                    **Analysis Failed**
+
+                                    Error: {str(e)[:200]}
+
+                                    Please try again. If the problem persists, try:
+                                    - Using a different image
+                                    - Checking your internet connection
+                                    - Verifying your API key
+                                    """)
 
                 # Quick stats if result exists
                 if 'analysis_result' in st.session_state:
@@ -458,11 +673,60 @@ def main():
                     </div>
                     """, unsafe_allow_html=True)
 
-                # Contributing factors
+                # Risk Level Explanation
+                risk_score = pred.failure_risk_score
+                if risk_score >= 80:
+                    risk_level = "CRITICAL"
+                    risk_explanation = "Immediate attention required. High probability of failure within the prediction window."
+                    risk_icon = "🔴"
+                elif risk_score >= 60:
+                    risk_level = "HIGH"
+                    risk_explanation = "Significant risk. Schedule repair as soon as possible to prevent emergency failure."
+                    risk_icon = "🟠"
+                elif risk_score >= 40:
+                    risk_level = "MODERATE"
+                    risk_explanation = "Notable concern. Plan for repair within the next budget cycle."
+                    risk_icon = "🟡"
+                else:
+                    risk_level = "LOW"
+                    risk_explanation = "Acceptable condition. Continue routine monitoring."
+                    risk_icon = "🟢"
+
+                st.markdown(f"""
+                <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <div style="font-size: 16px; color: {get_risk_color(risk_score)};">
+                        {risk_icon} <strong>Risk Level: {risk_level}</strong>
+                    </div>
+                    <div style="color: #94a3b8; margin-top: 5px;">
+                        {risk_explanation}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Time to Failure with Confidence
+                if pred.estimated_time_to_failure_months:
+                    st.markdown(f"""
+                    <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <div style="font-size: 14px; color: #94a3b8;">Estimated Time to Failure</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #e2e8f0;">
+                            {pred.estimated_time_to_failure_months} months
+                            <span style="font-size: 14px; color: #64748b;">({pred.confidence_interval})</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Contributing factors with better styling
                 if pred.contributing_factors:
                     st.markdown("**Contributing Factors:**")
-                    for factor in pred.contributing_factors:
-                        st.markdown(f"- {factor}")
+                    factors_html = ""
+                    for i, factor in enumerate(pred.contributing_factors, 1):
+                        factors_html += f"""
+                        <div style="background: #1e293b; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid #3b82f6;">
+                            <span style="color: #60a5fa; font-weight: bold;">{i}.</span>
+                            <span style="color: #e2e8f0;">{factor}</span>
+                        </div>
+                        """
+                    st.markdown(factors_html, unsafe_allow_html=True)
 
                 # Recommendation
                 st.info(f"**Recommendation:** {pred.recommended_action}")
@@ -496,10 +760,22 @@ def main():
                     savings_pct = (savings / pred.cost_estimate_emergency) * 100
                     st.success(f"💰 Proactive repair saves **${savings:,.0f}** ({savings_pct:.0f}% savings)")
 
-                # Reasoning
+                # Detailed Reasoning with better formatting
                 if pred.reasoning:
-                    with st.expander("View Detailed Reasoning"):
-                        st.write(pred.reasoning)
+                    with st.expander("📋 View Detailed AI Reasoning", expanded=False):
+                        # Split reasoning into paragraphs for better readability
+                        reasoning_text = pred.reasoning.strip()
+                        paragraphs = reasoning_text.split('\n\n')
+
+                        for para in paragraphs:
+                            para = para.strip()
+                            if para:
+                                # Check if it's a numbered list item
+                                if para[0].isdigit() and '.' in para[:3]:
+                                    st.markdown(f"**{para}**")
+                                else:
+                                    st.markdown(para)
+                                st.markdown("")  # Add spacing
 
     # Tab 3: PACP Reference
     with tab3:
