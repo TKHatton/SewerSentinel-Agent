@@ -1,0 +1,32 @@
+# SewerSentinel Dependencies
+# Google DeepMind Gemini 3 Hackathon Project
+
+# Google Gemini API (NEW SDK - not the deprecated google-generativeai)
+google-genai>=1.0.0
+
+# Web framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# Data handling
+pandas>=2.0.0
+numpy>=1.24.0
+pillow>=10.0.0
+pydantic>=2.0.0
+
+# Video processing
+opencv-python-headless>=4.8.0
+
+# HTTP client for external APIs
+httpx>=0.25.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Streamlit for AI Studio deployment
+streamlit>=1.28.0
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
