@@ -426,39 +426,40 @@ Provide your prediction ONLY in JSON format (no other text):
 
 IMPORTANT: Always provide numeric values for all fields. Never return 0 for costs or risk scores."""
 
-    def _call_gemini_with_retry(
-        self,
-        contents: List[Any],
-        use_thinking: bool = False,
-        max_retries: int = 3,
-        retry_delay: float = 2.0
-    ) -> str:
-        """
-        Call Gemini API with retry logic for handling flaky responses.
-        """
-        last_error = None
-        
-        for attempt in range(max_retries):
-            try:
-                # First attempt: try without thinking config (more stable)
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=contents
-                )
+def _call_gemini_with_retry(
+    self,
+    contents: List[Any],
+    use_thinking: bool = False,
+    max_retries: int = 3,
+    retry_delay: float = 2.0
+) -> str:
+    """
+    Call Gemini API with retry logic.
+    Note: thinking_config removed due to compatibility issues with gemini-3-flash-preview
+    """
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            # Simple API call without any config
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents
+            )
 
-                if response and response.text:
-                    return response.text
-                else:
-                    raise ValueError("Empty response from Gemini API")
+            if response and response.text:
+                return response.text
+            else:
+                raise ValueError("Empty response from Gemini API")
 
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Gemini API call failed (attempt {attempt + 1}/{max_retries}): {e}")
-                
-                if attempt < max_retries - 1:
-                    time.sleep(retry_delay * (attempt + 1))
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Gemini API call failed (attempt {attempt + 1}/{max_retries}): {e}")
+            
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay * (attempt + 1))
 
-        raise RuntimeError(f"Gemini API call failed after {max_retries} attempts: {last_error}")
+    raise RuntimeError(f"Gemini API call failed after {max_retries} attempts: {last_error}")
 
     def analyze_image(self, image_path: str, pipe_id: str = "unknown") -> Dict[str, Any]:
         """
