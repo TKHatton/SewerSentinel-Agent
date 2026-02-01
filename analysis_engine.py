@@ -18,6 +18,9 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 
+# Import calibration module for PACP-compliant grading rubrics and few-shot examples
+from sewer_sentinel_calibration import get_calibrated_detection_prompt, EnsembleAnalyzer
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -628,69 +631,11 @@ class SewerSentinelEngine:
         self.thinking_supported = True  # Will be set to False if thinking fails
 
         logger.info(f"SewerSentinel Engine initialized with model: {model_name}")
-        
-        # System prompt for defect detection
-        self.detection_prompt = """You are SewerSentinel, an expert AI system for analyzing sewer pipe CCTV inspection footage.
 
-Your role is to:
-1. Identify and classify defects using PACP (Pipeline Assessment Certification Program) standards
-2. Assign severity grades (1-5, where 5 is most severe)
-3. Provide detailed observations about pipe condition
-
-PACP Defect Codes to use:
-- CL: Longitudinal Crack
-- CC: Circumferential Crack  
-- CM: Multiple Cracks
-- FC: Fracture
-- B: Broken pipe
-- H: Hole
-- D: Deformed pipe
-- X: Collapse
-- RF/RM/RB: Root intrusion (Fine/Medium/Ball)
-- DAG/DS: Deposits (Attached/Settled)
-- I: Infiltration (water entering pipe)
-- JD/JS: Joint problems (Displaced/Separated)
-- SD: Surface damage
-- COR: Corrosion
-- OK: Normal/No defects
-
-Grade definitions:
-- Grade 1: Minor defect, no immediate concern
-- Grade 2: Minor to moderate, monitor in future inspections
-- Grade 3: Moderate defect, schedule for repair within 3-5 years
-- Grade 4: Significant defect, repair within 1-2 years
-- Grade 5: Critical defect, immediate attention required
-
-Also identify pipe characteristics from visual appearance:
-- Pipe material: Look for texture/color cues:
-  * Concrete: Gray, rough texture, may show aggregate
-  * Vitrified clay: Brown/red, smooth glazed surface, visible joints
-  * PVC: White/gray, smooth plastic appearance
-  * Cast iron: Dark gray/black, may show rust/corrosion
-  * Brick: Red/brown rectangular blocks with mortar joints
-  * HDPE: Black, smooth plastic surface
-- Estimated diameter: Based on perspective and camera field of view
-- Water level: Percentage of pipe diameter covered by flow
-
-For the image provided, respond ONLY in JSON format (no other text):
-{
-    "defects": [
-        {
-            "defect_type": "Description of defect",
-            "defect_code": "PACP code",
-            "grade": 1-5,
-            "location_in_pipe": "clock position or floor/crown",
-            "confidence": 0.0-1.0,
-            "description": "Detailed observation"
-        }
-    ],
-    "overall_assessment": "Summary of pipe condition",
-    "overall_grade": 1-5,
-    "pipe_material_observed": "concrete/clay/pvc/cast_iron/brick/hdpe/unknown",
-    "pipe_material_confidence": 0.0-1.0,
-    "estimated_diameter_inches": estimated diameter or null if uncertain,
-    "water_level_percent": estimated percentage (0-100) or null
-}"""
+        # Use calibrated detection prompt with grading rubrics and few-shot examples
+        # This provides PACP-compliant grading with exact thresholds and calibration
+        # examples from the Sewer-ML dataset for more consistent, accurate detection
+        self.detection_prompt = get_calibrated_detection_prompt()
 
         self.prediction_prompt = """You are SewerSentinel's prediction engine. Based on the defects detected and contextual information provided, predict the degradation trajectory of this pipe segment.
 
@@ -1217,6 +1162,32 @@ Current Overall Grade: {current_grade}
             analysis_timestamp=datetime.now().isoformat(),
             raw_analysis=analysis
         )
+
+    def analyze_with_ensemble(self, image_path: str, pipe_id: str, num_passes: int = 3) -> dict:
+        """
+        Run ensemble analysis for higher confidence results.
+
+        This method runs multiple independent analysis passes on the same image
+        and aggregates the results to provide more reliable, consistent assessments.
+        Useful for critical inspections where accuracy is paramount.
+
+        Args:
+            image_path: Path to the image
+            pipe_id: Pipe identifier
+            num_passes: Number of independent analysis passes (default 3)
+
+        Returns:
+            Aggregated analysis with confidence metrics including:
+            - analysis_mode: "ensemble"
+            - num_passes: Total passes attempted
+            - successful_passes: Passes that completed successfully
+            - defects: Consensus defects with agreement scores
+            - overall_grade: Median grade across passes
+            - overall_grade_agreement: Agreement percentage for overall grade
+            - overall_confidence: Combined agreement score
+        """
+        ensemble = EnsembleAnalyzer(self, num_passes=num_passes)
+        return ensemble.analyze(image_path, pipe_id)
 
     def _update_pipe_state(self, pipe_id: str, analysis: Dict) -> None:
         """Update Thought Signatures memory for a pipe."""

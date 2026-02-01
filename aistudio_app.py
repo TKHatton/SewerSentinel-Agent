@@ -415,6 +415,22 @@ def main():
 
         st.divider()
 
+        # Analysis Mode Selection
+        st.subheader("Analysis Mode")
+        use_ensemble = st.checkbox(
+            "High-Confidence Mode",
+            value=False,
+            help="Runs 3 independent analyses and shows consensus results. Takes longer but more reliable."
+        )
+
+        if use_ensemble:
+            st.info("High-Confidence Mode: Analysis will run 3 passes for better accuracy")
+
+        # Store in session state for use during analysis
+        st.session_state['use_ensemble'] = use_ensemble
+
+        st.divider()
+
         st.caption("Built for Gemini 3 Hackathon 2026")
         st.caption("Powered by Google Gemini 3")
 
@@ -623,8 +639,16 @@ def main():
                                 "location_type": manual_ctx.get('location_type', 'residential')
                             }
 
+                            # Check if ensemble mode is enabled
+                            use_ensemble = st.session_state.get('use_ensemble', False)
+
                             # First, run detection to get pipe characteristics
-                            detection_result = engine.analyze_image(tmp_path, pipe_id)
+                            if use_ensemble:
+                                # For ensemble mode, we run a single detection first for characteristics
+                                # then the full ensemble for defect analysis
+                                detection_result = engine.analyze_image(tmp_path, pipe_id + "_detect")
+                            else:
+                                detection_result = engine.analyze_image(tmp_path, pipe_id)
 
                             # Check for auto-detected pipe characteristics
                             auto_detected = []
@@ -656,11 +680,62 @@ def main():
                                 auto_detected.append(f"Diameter: {int(detected_diameter)} inches")
 
                             # Run full analysis with the configured context
-                            result = engine.create_full_analysis(
-                                image_path=tmp_path,
-                                pipe_id=pipe_id,
-                                context=context
-                            )
+                            if use_ensemble:
+                                # Run ensemble analysis for higher confidence
+                                with st.spinner("Running ensemble analysis (3 passes)..."):
+                                    ensemble_result = engine.analyze_with_ensemble(
+                                        image_path=tmp_path,
+                                        pipe_id=pipe_id,
+                                        num_passes=3
+                                    )
+
+                                    # Create a full analysis result from ensemble data
+                                    # We still need prediction, so run that separately
+                                    result = engine.create_full_analysis(
+                                        image_path=tmp_path,
+                                        pipe_id=pipe_id,
+                                        context=context
+                                    )
+
+                                    # Override defects with ensemble consensus
+                                    from analysis_engine import DetectedDefect
+                                    ensemble_defects = [
+                                        DetectedDefect(
+                                            defect_type=d.get('defect_type', ''),
+                                            defect_code=d.get('defect_code', ''),
+                                            grade=d.get('grade', 1),
+                                            location_in_pipe=d.get('location_in_pipe', ''),
+                                            confidence=d.get('confidence', 0),
+                                            description=d.get('description', '')
+                                        )
+                                        for d in ensemble_result.get('defects', [])
+                                    ]
+                                    result.defects = ensemble_defects
+                                    result.overall_grade = ensemble_result.get('overall_grade', 1)
+
+                                    # Store ensemble-specific metrics
+                                    result.raw_analysis['ensemble_metrics'] = {
+                                        'analysis_mode': 'ensemble',
+                                        'num_passes': ensemble_result.get('num_passes', 3),
+                                        'successful_passes': ensemble_result.get('successful_passes', 0),
+                                        'overall_confidence': ensemble_result.get('overall_confidence', 'N/A'),
+                                        'overall_grade_agreement': ensemble_result.get('overall_grade_agreement', 'N/A'),
+                                        'material_agreement': ensemble_result.get('material_agreement', 'N/A'),
+                                        'ensemble_summary': ensemble_result.get('ensemble_summary', ''),
+                                        'defect_agreements': {
+                                            d.get('defect_code', ''): {
+                                                'agreement': d.get('ensemble_agreement', ''),
+                                                'grade_range': d.get('grade_range', '')
+                                            }
+                                            for d in ensemble_result.get('defects', [])
+                                        }
+                                    }
+                            else:
+                                result = engine.create_full_analysis(
+                                    image_path=tmp_path,
+                                    pipe_id=pipe_id,
+                                    context=context
+                                )
 
                             # Store detected characteristics in result for display
                             result.raw_analysis['auto_detected'] = {
@@ -691,17 +766,23 @@ def main():
 
                             # Show success message
                             mode_info = []
-                            if material_mode == 'ai' and auto_detected:
-                                mode_info.append(f"AI detected: {', '.join(auto_detected)}")
-                            if material_mode == 'manual':
-                                mode_info.append(f"Using manual material: {context['pipe_material']}")
-                            if diameter_mode == 'manual':
-                                mode_info.append(f"Using manual diameter: {context['pipe_diameter_inches']}\"")
-
-                            if mode_info:
-                                st.success(f"Analysis complete! {' | '.join(mode_info)}")
+                            if use_ensemble:
+                                ensemble_metrics = result.raw_analysis.get('ensemble_metrics', {})
+                                mode_info.append(f"Ensemble ({ensemble_metrics.get('successful_passes', 3)}/3 passes)")
+                                overall_conf = ensemble_metrics.get('overall_confidence', 'N/A')
+                                st.success(f"Ensemble analysis complete! Agreement: {overall_conf}")
                             else:
-                                st.success("Analysis complete! Go to Results tab to see details.")
+                                if material_mode == 'ai' and auto_detected:
+                                    mode_info.append(f"AI detected: {', '.join(auto_detected)}")
+                                if material_mode == 'manual':
+                                    mode_info.append(f"Using manual material: {context['pipe_material']}")
+                                if diameter_mode == 'manual':
+                                    mode_info.append(f"Using manual diameter: {context['pipe_diameter_inches']}\"")
+
+                                if mode_info:
+                                    st.success(f"Analysis complete! {' | '.join(mode_info)}")
+                                else:
+                                    st.success("Analysis complete! Go to Results tab to see details.")
 
                         except Exception as e:
                             error_msg = str(e).lower()
@@ -783,6 +864,20 @@ def main():
 
             # Executive Summary (always visible - it's the key takeaway)
             st.info(f"**Executive Summary:** {result.executive_summary}")
+
+            # Ensemble Analysis Results (if applicable)
+            ensemble_metrics = result.raw_analysis.get('ensemble_metrics', {})
+            if ensemble_metrics.get('analysis_mode') == 'ensemble':
+                with st.expander("Ensemble Analysis Results", expanded=True):
+                    st.markdown(f"""
+                    **Ensemble Analysis Results**
+                    - Passes completed: {ensemble_metrics.get('successful_passes')}/{ensemble_metrics.get('num_passes')}
+                    - Overall agreement: {ensemble_metrics.get('overall_confidence')}
+                    - Grade agreement: {ensemble_metrics.get('overall_grade_agreement')}
+                    - Material agreement: {ensemble_metrics.get('material_agreement')}
+                    """)
+
+                    st.caption(ensemble_metrics.get('ensemble_summary', ''))
 
             # Data Sources Section - Show what was used (read-only summary)
             used_context = result.raw_analysis.get('used_context', {})
@@ -871,6 +966,22 @@ def main():
                 else:
                     for defect in result.defects:
                         grade_color = get_grade_color(defect.grade)
+
+                        # Get ensemble agreement info if available
+                        defect_agreements = ensemble_metrics.get('defect_agreements', {})
+                        defect_agreement_info = defect_agreements.get(defect.defect_code, {})
+                        ensemble_agreement = defect_agreement_info.get('agreement', '')
+                        grade_range = defect_agreement_info.get('grade_range', '')
+
+                        # Build ensemble info line if available
+                        ensemble_line = ""
+                        if ensemble_agreement and grade_range:
+                            ensemble_line = f"""
+                            <div style="color: #60a5fa; font-size: 12px; margin-top: 4px;">
+                                Ensemble Agreement: {ensemble_agreement} | Grade range: {grade_range}
+                            </div>
+                            """
+
                         st.markdown(f"""
                         <div style="background: #1e293b; padding: 12px 15px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {grade_color};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -886,6 +997,7 @@ def main():
                             <div style="color: #cbd5e1; font-size: 13px; margin-top: 4px; font-style: italic;">
                                 {defect.description if defect.description else ''}
                             </div>
+                            {ensemble_line}
                         </div>
                         """, unsafe_allow_html=True)
 
