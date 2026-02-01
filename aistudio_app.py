@@ -66,33 +66,66 @@ def get_theme_css(theme: str) -> str:
     if theme == 'light':
         return """
         <style>
-            /* Light theme */
+            /* Light theme - High contrast, professional blue theme */
             .stApp {
-                background-color: #f8fafc;
+                background-color: #f0f4f8 !important;
+            }
+
+            /* Override Streamlit's default backgrounds */
+            .stApp > header {
+                background-color: #f0f4f8 !important;
+            }
+
+            section[data-testid="stSidebar"] {
+                background: linear-gradient(180deg, #1e3a5f 0%, #2d4a6f 100%) !important;
+            }
+
+            section[data-testid="stSidebar"] > div {
+                background: transparent !important;
+            }
+
+            /* Sidebar text should be light on dark sidebar */
+            section[data-testid="stSidebar"] * {
+                color: #e2e8f0 !important;
+            }
+
+            section[data-testid="stSidebar"] .stSelectbox label,
+            section[data-testid="stSidebar"] .stCheckbox label {
+                color: #e2e8f0 !important;
+            }
+
+            /* But inputs in sidebar should have dark text */
+            section[data-testid="stSidebar"] input,
+            section[data-testid="stSidebar"] select,
+            section[data-testid="stSidebar"] .stSelectbox > div > div {
+                color: #1e293b !important;
+                background-color: #ffffff !important;
             }
 
             .main-header {
-                background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+                background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
                 padding: 20px;
                 border-radius: 10px;
                 margin-bottom: 20px;
-                border: 1px solid #cbd5e1;
+                border: none;
+                box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
             }
 
             .main-header h1 {
-                color: #1e293b !important;
+                color: #ffffff !important;
             }
 
             .main-header p {
-                color: #475569 !important;
+                color: #e2e8f0 !important;
             }
 
             .stat-card {
-                background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+                background: #ffffff;
                 padding: 20px;
                 border-radius: 8px;
-                border: 1px solid #e2e8f0;
+                border: 2px solid #cbd5e1;
                 text-align: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             }
 
             .defect-card {
@@ -101,7 +134,8 @@ def get_theme_css(theme: str) -> str:
                 border-radius: 6px;
                 margin: 10px 0;
                 border-left: 4px solid #f97316;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border: 2px solid #e2e8f0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.08);
             }
 
             .grade-badge {
@@ -112,22 +146,22 @@ def get_theme_css(theme: str) -> str:
                 font-size: 18px;
             }
 
-            .grade-1 { background-color: #22c55e; color: white; }
-            .grade-2 { background-color: #84cc16; color: white; }
-            .grade-3 { background-color: #eab308; color: white; }
-            .grade-4 { background-color: #f97316; color: white; }
-            .grade-5 { background-color: #ef4444; color: white; }
+            .grade-1 { background-color: #16a34a; color: white; }
+            .grade-2 { background-color: #65a30d; color: white; }
+            .grade-3 { background-color: #ca8a04; color: white; }
+            .grade-4 { background-color: #ea580c; color: white; }
+            .grade-5 { background-color: #dc2626; color: white; }
 
-            .risk-high { color: #dc2626; }
-            .risk-medium { color: #ea580c; }
-            .risk-low { color: #16a34a; }
+            .risk-high { color: #dc2626; font-weight: bold; }
+            .risk-medium { color: #ea580c; font-weight: bold; }
+            .risk-low { color: #16a34a; font-weight: bold; }
 
             .prediction-box {
                 background: #ffffff;
                 padding: 20px;
                 border-radius: 8px;
-                border: 1px solid #e2e8f0;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border: 2px solid #cbd5e1;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
 
             .cost-comparison {
@@ -140,20 +174,116 @@ def get_theme_css(theme: str) -> str:
                 padding: 15px;
                 border-radius: 8px;
                 background: #ffffff;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border: 2px solid #e2e8f0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.08);
             }
 
-            .cost-repair { border-left: 4px solid #22c55e; }
-            .cost-emergency { border-left: 4px solid #ef4444; }
+            .cost-repair { border-left: 4px solid #16a34a; }
+            .cost-emergency { border-left: 4px solid #dc2626; }
 
-            /* Light theme text colors for custom HTML */
-            [data-theme="light"] {
-                --text-primary: #1e293b;
-                --text-secondary: #475569;
-                --text-muted: #64748b;
-                --bg-card: #ffffff;
-                --bg-card-alt: #f1f5f9;
-                --border-color: #e2e8f0;
+            /* Main content text should be dark */
+            .main .stMarkdown, .main p, .main span, .main div, .main label {
+                color: #1e293b !important;
+            }
+
+            /* Style expanders */
+            .streamlit-expanderHeader {
+                background-color: #e8f0f8 !important;
+                border-radius: 8px;
+                border: 1px solid #cbd5e1 !important;
+            }
+
+            /* Style expander content */
+            .streamlit-expanderContent {
+                background-color: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                border-top: none !important;
+            }
+
+            /* Style metrics */
+            [data-testid="stMetricValue"] {
+                color: #1e3a5f !important;
+                font-weight: bold !important;
+            }
+
+            [data-testid="stMetricLabel"] {
+                color: #475569 !important;
+            }
+
+            /* Tabs styling */
+            .stTabs [data-baseweb="tab-list"] {
+                background-color: #e8f0f8;
+                border-radius: 8px;
+                padding: 4px;
+                border: 1px solid #cbd5e1;
+            }
+
+            .stTabs [data-baseweb="tab"] {
+                color: #1e293b !important;
+                font-weight: 500;
+            }
+
+            .stTabs [aria-selected="true"] {
+                background-color: #1e3a5f !important;
+                color: white !important;
+            }
+
+            /* Input fields */
+            .stSelectbox > div > div,
+            .stNumberInput > div > div > input,
+            .stTextInput > div > div > input {
+                background-color: #ffffff !important;
+                border: 2px solid #cbd5e1 !important;
+                color: #1e293b !important;
+            }
+
+            /* Buttons */
+            .stButton > button {
+                background-color: #1e3a5f !important;
+                color: white !important;
+                border: none !important;
+                font-weight: 600 !important;
+                box-shadow: 0 2px 4px rgba(30, 58, 95, 0.3) !important;
+            }
+
+            .stButton > button:hover {
+                background-color: #2d5a87 !important;
+                box-shadow: 0 4px 8px rgba(30, 58, 95, 0.4) !important;
+            }
+
+            /* Info boxes */
+            .stAlert {
+                background-color: #e8f4fc !important;
+                border: 1px solid #60a5fa !important;
+                color: #1e293b !important;
+            }
+
+            /* Success boxes */
+            [data-testid="stAlert"][data-type="success"] {
+                background-color: #dcfce7 !important;
+                border: 1px solid #16a34a !important;
+            }
+
+            /* Dividers */
+            hr {
+                border-color: #cbd5e1 !important;
+            }
+
+            /* File uploader */
+            [data-testid="stFileUploader"] {
+                background-color: #ffffff !important;
+                border: 2px dashed #cbd5e1 !important;
+                border-radius: 8px !important;
+            }
+
+            /* Checkboxes */
+            .stCheckbox > label {
+                color: #e2e8f0 !important;
+            }
+
+            /* Caption text */
+            .stCaption, small {
+                color: #64748b !important;
             }
         </style>
         """
@@ -250,15 +380,19 @@ def get_theme_colors() -> dict:
     theme = st.session_state.get('theme', 'dark')
     if theme == 'light':
         return {
-            'bg_primary': '#ffffff',
-            'bg_secondary': '#f1f5f9',
+            'bg_primary': '#f0f4f8',
+            'bg_secondary': '#e2e8f0',
             'bg_card': '#ffffff',
             'bg_card_alt': '#f8fafc',
             'text_primary': '#1e293b',
-            'text_secondary': '#475569',
-            'text_muted': '#64748b',
-            'border': '#e2e8f0',
-            'accent': '#3b82f6',
+            'text_secondary': '#334155',
+            'text_muted': '#475569',
+            'border': '#cbd5e1',
+            'accent': '#1e3a5f',
+            'accent_light': '#2d5a87',
+            'success': '#16a34a',
+            'danger': '#dc2626',
+            'warning': '#ca8a04',
         }
     else:
         return {
@@ -271,6 +405,10 @@ def get_theme_colors() -> dict:
             'text_muted': '#64748b',
             'border': '#2d3748',
             'accent': '#60a5fa',
+            'accent_light': '#93c5fd',
+            'success': '#22c55e',
+            'danger': '#ef4444',
+            'warning': '#eab308',
         }
 
 
@@ -477,19 +615,16 @@ Cost analysis: Proactive CIPP rehabilitation ($15,000) vs emergency dig-and-repl
 
 
 def main():
-    # Header with theme-aware colors
+    # Header - always white text on dark gradient background
     theme = st.session_state.get('theme', 'dark')
-    header_title_color = "#1e293b" if theme == 'light' else "#e2e8f0"
-    header_subtitle_color = "#475569" if theme == 'light' else "#94a3b8"
-    header_muted_color = "#64748b" if theme == 'light' else "#64748b"
 
-    st.markdown(f"""
+    st.markdown("""
     <div class="main-header">
-        <h1 style="margin: 0; color: {header_title_color};">🔍 SewerSentinel</h1>
-        <p style="margin: 5px 0 0 0; color: {header_subtitle_color};">
+        <h1 style="margin: 0; color: #ffffff;">🔍 SewerSentinel</h1>
+        <p style="margin: 5px 0 0 0; color: #e2e8f0;">
             Autonomous Underground Infrastructure Predictive Failure System
         </p>
-        <p style="margin: 5px 0 0 0; color: {header_muted_color}; font-size: 12px;">
+        <p style="margin: 5px 0 0 0; color: #cbd5e1; font-size: 12px;">
             Powered by Google Gemini 3 | PACP Compliant
         </p>
     </div>
@@ -1062,6 +1197,12 @@ def main():
                 with st.expander("⚙️ Analysis Configuration Used", expanded=False):
                     st.markdown("These values were used to generate predictions:")
 
+                    # Get theme colors
+                    colors = get_theme_colors()
+                    card_bg = colors['bg_card_alt']
+                    text_primary = colors['text_primary']
+                    text_muted = colors['text_muted']
+
                     # Show material and diameter with source indicator
                     col1, col2 = st.columns(2)
 
@@ -1073,9 +1214,9 @@ def main():
                         source_label = f"AI ({material_conf:.0%})" if material_mode == 'ai' else "Manual"
 
                         st.markdown(f"""
-                        <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
-                            <div style="color: #94a3b8; font-size: 12px;">{source_icon} {source_label}</div>
-                            <div style="color: #e2e8f0; font-size: 14px; font-weight: bold;">Material: {material_val.replace('_', ' ').title()}</div>
+                        <div style="background: {card_bg}; padding: 12px; border-radius: 6px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 12px;">{source_icon} {source_label}</div>
+                            <div style="color: {text_primary}; font-size: 14px; font-weight: bold;">Material: {material_val.replace('_', ' ').title()}</div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -1086,9 +1227,9 @@ def main():
                         source_label = "AI Estimated" if diameter_mode == 'ai' else "Manual"
 
                         st.markdown(f"""
-                        <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
-                            <div style="color: #94a3b8; font-size: 12px;">{source_icon} {source_label}</div>
-                            <div style="color: #e2e8f0; font-size: 14px; font-weight: bold;">Diameter: {diameter_val}"</div>
+                        <div style="background: {card_bg}; padding: 12px; border-radius: 6px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 12px;">{source_icon} {source_label}</div>
+                            <div style="color: {text_primary}; font-size: 14px; font-weight: bold;">Diameter: {diameter_val}"</div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -1098,29 +1239,29 @@ def main():
 
                     context_html = f"""
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
-                            <div style="color: #94a3b8; font-size: 11px;">AGE</div>
-                            <div style="color: #e2e8f0;">{used_context.get('pipe_age_years', 'N/A')} years</div>
+                        <div style="background: {card_bg}; padding: 8px; border-radius: 4px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 11px;">AGE</div>
+                            <div style="color: {text_primary};">{used_context.get('pipe_age_years', 'N/A')} years</div>
                         </div>
-                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
-                            <div style="color: #94a3b8; font-size: 11px;">DEPTH</div>
-                            <div style="color: #e2e8f0;">{used_context.get('depth_feet', 'N/A')} ft</div>
+                        <div style="background: {card_bg}; padding: 8px; border-radius: 4px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 11px;">DEPTH</div>
+                            <div style="color: {text_primary};">{used_context.get('depth_feet', 'N/A')} ft</div>
                         </div>
-                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
-                            <div style="color: #94a3b8; font-size: 11px;">TRAFFIC</div>
-                            <div style="color: #e2e8f0;">{used_context.get('traffic_load', 'N/A').title()}</div>
+                        <div style="background: {card_bg}; padding: 8px; border-radius: 4px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 11px;">TRAFFIC</div>
+                            <div style="color: {text_primary};">{used_context.get('traffic_load', 'N/A').title()}</div>
                         </div>
-                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
-                            <div style="color: #94a3b8; font-size: 11px;">SOIL</div>
-                            <div style="color: #e2e8f0;">{used_context.get('soil_type', 'N/A').title()}</div>
+                        <div style="background: {card_bg}; padding: 8px; border-radius: 4px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 11px;">SOIL</div>
+                            <div style="color: {text_primary};">{used_context.get('soil_type', 'N/A').title()}</div>
                         </div>
-                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
-                            <div style="color: #94a3b8; font-size: 11px;">GROUNDWATER</div>
-                            <div style="color: #e2e8f0;">{used_context.get('groundwater', 'N/A').title()}</div>
+                        <div style="background: {card_bg}; padding: 8px; border-radius: 4px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 11px;">GROUNDWATER</div>
+                            <div style="color: {text_primary};">{used_context.get('groundwater', 'N/A').title()}</div>
                         </div>
-                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
-                            <div style="color: #94a3b8; font-size: 11px;">LOCATION</div>
-                            <div style="color: #e2e8f0;">{used_context.get('location_type', 'N/A').title()}</div>
+                        <div style="background: {card_bg}; padding: 8px; border-radius: 4px; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 11px;">LOCATION</div>
+                            <div style="color: {text_primary};">{used_context.get('location_type', 'N/A').title()}</div>
                         </div>
                     </div>
                     """
@@ -1137,6 +1278,14 @@ def main():
                 if not result.defects:
                     st.success("No significant defects detected!")
                 else:
+                    # Get theme colors for defect cards
+                    colors = get_theme_colors()
+                    card_bg = colors['bg_card_alt']
+                    text_primary = colors['text_primary']
+                    text_secondary = colors['text_secondary']
+                    text_muted = colors['text_muted']
+                    accent = colors['accent']
+
                     for defect in result.defects:
                         grade_color = get_grade_color(defect.grade)
 
@@ -1150,24 +1299,24 @@ def main():
                         ensemble_line = ""
                         if ensemble_agreement and grade_range:
                             ensemble_line = f"""
-                            <div style="color: #60a5fa; font-size: 12px; margin-top: 4px;">
+                            <div style="color: {accent}; font-size: 12px; margin-top: 4px;">
                                 Ensemble Agreement: {ensemble_agreement} | Grade range: {grade_range}
                             </div>
                             """
 
                         st.markdown(f"""
-                        <div style="background: #1e293b; padding: 12px 15px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {grade_color};">
+                        <div style="background: {card_bg}; padding: 12px 15px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {grade_color}; border: 1px solid {colors['border']};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <span style="color: {grade_color}; font-weight: bold;">{defect.defect_code}</span>
-                                    <span style="color: #e2e8f0; margin-left: 8px;">{DEFECT_CODE_DESCRIPTIONS.get(defect.defect_code, defect.defect_type)}</span>
+                                    <span style="color: {text_primary}; margin-left: 8px;">{DEFECT_CODE_DESCRIPTIONS.get(defect.defect_code, defect.defect_type)}</span>
                                 </div>
                                 <span style="background: {grade_color}; color: white; padding: 2px 10px; border-radius: 4px; font-weight: bold;">Grade {defect.grade}</span>
                             </div>
-                            <div style="color: #94a3b8; font-size: 13px; margin-top: 6px;">
+                            <div style="color: {text_muted}; font-size: 13px; margin-top: 6px;">
                                 📍 {defect.location_in_pipe} | Confidence: {defect.confidence:.0%}
                             </div>
-                            <div style="color: #cbd5e1; font-size: 13px; margin-top: 4px; font-style: italic;">
+                            <div style="color: {text_secondary}; font-size: 13px; margin-top: 4px; font-style: italic;">
                                 {defect.description if defect.description else ''}
                             </div>
                             {ensemble_line}
@@ -1181,6 +1330,12 @@ def main():
                 prediction_summary = f"📊 Failure Prediction - Risk: {pred.failure_risk_score:.0f}% | Time to Failure: {pred.estimated_time_to_failure_months} months"
 
                 with st.expander(prediction_summary, expanded=True):
+                    # Get theme colors for prediction section
+                    colors = get_theme_colors()
+                    card_bg = colors['bg_card_alt']
+                    text_primary = colors['text_primary']
+                    text_muted = colors['text_muted']
+
                     col1, col2, col3, col4 = st.columns(4)
 
                     with col1:
@@ -1190,7 +1345,7 @@ def main():
                             <div style="font-size: 48px; font-weight: bold; color: {color};">
                                 {pred.failure_risk_score:.0f}%
                             </div>
-                            <div style="color: #94a3b8;">Risk Score</div>
+                            <div style="color: {text_muted};">Risk Score</div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -1263,11 +1418,11 @@ def main():
                         risk_icon = "🟢"
 
                     st.markdown(f"""
-                    <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                    <div style="background: {card_bg}; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid {colors['border']};">
                         <div style="font-size: 16px; color: {get_risk_color(risk_score)};">
                             {risk_icon} <strong>Risk Level: {risk_level}</strong>
                         </div>
-                        <div style="color: #94a3b8; margin-top: 5px;">
+                        <div style="color: {text_muted}; margin-top: 5px;">
                             {risk_explanation}
                         </div>
                     </div>
@@ -1276,11 +1431,11 @@ def main():
                     # Time to Failure with Confidence
                     if pred.estimated_time_to_failure_months:
                         st.markdown(f"""
-                        <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                            <div style="font-size: 14px; color: #94a3b8;">Estimated Time to Failure</div>
-                            <div style="font-size: 28px; font-weight: bold; color: #e2e8f0;">
+                        <div style="background: {card_bg}; padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid {colors['border']};">
+                            <div style="font-size: 14px; color: {text_muted};">Estimated Time to Failure</div>
+                            <div style="font-size: 28px; font-weight: bold; color: {text_primary};">
                                 {pred.estimated_time_to_failure_months} months
-                                <span style="font-size: 14px; color: #64748b;">({pred.confidence_interval})</span>
+                                <span style="font-size: 14px; color: {text_muted};">({pred.confidence_interval})</span>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1291,9 +1446,9 @@ def main():
                         factors_html = ""
                         for i, factor in enumerate(pred.contributing_factors, 1):
                             factors_html += f"""
-                            <div style="background: #1e293b; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid #3b82f6;">
-                                <span style="color: #60a5fa; font-weight: bold;">{i}.</span>
-                                <span style="color: #e2e8f0;">{factor}</span>
+                            <div style="background: {card_bg}; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid {colors['accent']}; border: 1px solid {colors['border']};">
+                                <span style="color: {colors['accent']}; font-weight: bold;">{i}.</span>
+                                <span style="color: {text_primary};">{factor}</span>
                             </div>
                             """
                         st.markdown(factors_html, unsafe_allow_html=True)
@@ -1304,13 +1459,18 @@ def main():
                 # Cost Analysis Section - Collapsible
                 cost_summary = f"💰 Cost-Benefit Analysis - Repair: ${pred.cost_estimate_repair:,.0f} vs Emergency: ${pred.cost_estimate_emergency:,.0f}"
                 with st.expander(cost_summary, expanded=True):
+                    # Get theme colors for cost section
+                    colors = get_theme_colors()
+                    card_bg = colors['bg_card_alt']
+                    text_muted = colors['text_muted']
+
                     col1, col2 = st.columns(2)
 
                     with col1:
                         st.markdown(f"""
-                        <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border-left: 4px solid #22c55e;">
-                            <div style="color: #94a3b8; font-size: 14px;">Proactive Repair Cost</div>
-                            <div style="color: #22c55e; font-size: 32px; font-weight: bold;">
+                        <div style="background: {card_bg}; padding: 20px; border-radius: 8px; border-left: 4px solid {colors['success']}; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 14px;">Proactive Repair Cost</div>
+                            <div style="color: {colors['success']}; font-size: 32px; font-weight: bold;">
                                 ${pred.cost_estimate_repair:,.0f}
                             </div>
                         </div>
@@ -1318,9 +1478,9 @@ def main():
 
                     with col2:
                         st.markdown(f"""
-                        <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border-left: 4px solid #ef4444;">
-                            <div style="color: #94a3b8; font-size: 14px;">Emergency Failure Cost</div>
-                            <div style="color: #ef4444; font-size: 32px; font-weight: bold;">
+                        <div style="background: {card_bg}; padding: 20px; border-radius: 8px; border-left: 4px solid {colors['danger']}; border: 1px solid {colors['border']};">
+                            <div style="color: {text_muted}; font-size: 14px;">Emergency Failure Cost</div>
+                            <div style="color: {colors['danger']}; font-size: 32px; font-weight: bold;">
                                 ${pred.cost_estimate_emergency:,.0f}
                             </div>
                         </div>
@@ -1359,23 +1519,24 @@ def main():
 
                             # Summary totals
                             st.markdown("---")
+                            totals_colors = get_theme_colors()
                             st.markdown(f"""
-                            <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                            <div style="background: {totals_colors['bg_card_alt']}; padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px solid {totals_colors['border']};">
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                    <span style="color: #94a3b8;">Subtotal</span>
-                                    <span style="color: #e2e8f0;">${estimate.subtotal:,.0f}</span>
+                                    <span style="color: {totals_colors['text_muted']};">Subtotal</span>
+                                    <span style="color: {totals_colors['text_primary']};">${estimate.subtotal:,.0f}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                    <span style="color: #94a3b8;">Contingency</span>
-                                    <span style="color: #e2e8f0;">${estimate.contingency:,.0f}</span>
+                                    <span style="color: {totals_colors['text_muted']};">Contingency</span>
+                                    <span style="color: {totals_colors['text_primary']};">${estimate.contingency:,.0f}</span>
                                 </div>
                                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                                    <span style="color: #94a3b8;">Engineering</span>
-                                    <span style="color: #e2e8f0;">${estimate.engineering:,.0f}</span>
+                                    <span style="color: {totals_colors['text_muted']};">Engineering</span>
+                                    <span style="color: {totals_colors['text_primary']};">${estimate.engineering:,.0f}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; border-top: 1px solid #374151; padding-top: 10px;">
-                                    <span style="color: #22c55e; font-weight: bold; font-size: 18px;">Grand Total</span>
-                                    <span style="color: #22c55e; font-weight: bold; font-size: 18px;">${estimate.grand_total:,.0f}</span>
+                                <div style="display: flex; justify-content: space-between; border-top: 1px solid {totals_colors['border']}; padding-top: 10px;">
+                                    <span style="color: {totals_colors['success']}; font-weight: bold; font-size: 18px;">Grand Total</span>
+                                    <span style="color: {totals_colors['success']}; font-weight: bold; font-size: 18px;">${estimate.grand_total:,.0f}</span>
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)
@@ -1393,11 +1554,12 @@ def main():
                     # Emergency Cost Factors
                     if hasattr(pred, 'emergency_factors') and pred.emergency_factors:
                         with st.expander("⚠️ Emergency Cost Factors", expanded=False):
+                            emerg_colors = get_theme_colors()
                             st.markdown("**Why emergency repairs cost more:**")
                             for factor in pred.emergency_factors:
                                 st.markdown(f"""
-                                <div style="background: #1e293b; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid #ef4444;">
-                                    <span style="color: #e2e8f0;">{factor}</span>
+                                <div style="background: {emerg_colors['bg_card_alt']}; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid {emerg_colors['danger']}; border: 1px solid {emerg_colors['border']};">
+                                    <span style="color: {emerg_colors['text_primary']};">{factor}</span>
                                 </div>
                                 """, unsafe_allow_html=True)
 
