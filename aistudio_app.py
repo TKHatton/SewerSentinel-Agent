@@ -57,359 +57,103 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize theme in session state
-if 'theme' not in st.session_state:
-    st.session_state['theme'] = 'dark'
+# Dark theme CSS
+DARK_THEME_CSS = """
+<style>
+    /* Dark theme */
+    .stApp {
+        background-color: #0a0a0f;
+    }
 
-def get_theme_css(theme: str) -> str:
-    """Generate CSS based on selected theme."""
-    if theme == 'light':
-        return """
-        <style>
-            /* Light theme - High contrast, professional blue theme */
-            .stApp {
-                background-color: #f0f4f8 !important;
-            }
+    .main-header {
+        background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #2d3748;
+    }
 
-            /* Override Streamlit's default backgrounds */
-            .stApp > header {
-                background-color: #f0f4f8 !important;
-            }
+    .stat-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #2d3748;
+        text-align: center;
+    }
 
-            section[data-testid="stSidebar"] {
-                background: linear-gradient(180deg, #1e3a5f 0%, #2d4a6f 100%) !important;
-            }
+    .defect-card {
+        background: #1a1a2e;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 10px 0;
+        border-left: 4px solid #f97316;
+    }
 
-            section[data-testid="stSidebar"] > div {
-                background: transparent !important;
-            }
+    .grade-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 18px;
+    }
 
-            /* Sidebar text should be light on dark sidebar */
-            section[data-testid="stSidebar"] * {
-                color: #e2e8f0 !important;
-            }
+    .grade-1 { background-color: #22c55e; color: white; }
+    .grade-2 { background-color: #84cc16; color: white; }
+    .grade-3 { background-color: #eab308; color: white; }
+    .grade-4 { background-color: #f97316; color: white; }
+    .grade-5 { background-color: #ef4444; color: white; }
 
-            section[data-testid="stSidebar"] .stSelectbox label,
-            section[data-testid="stSidebar"] .stCheckbox label {
-                color: #e2e8f0 !important;
-            }
+    .risk-high { color: #ef4444; }
+    .risk-medium { color: #f97316; }
+    .risk-low { color: #22c55e; }
 
-            /* But inputs in sidebar should have dark text */
-            section[data-testid="stSidebar"] input,
-            section[data-testid="stSidebar"] select,
-            section[data-testid="stSidebar"] .stSelectbox > div > div {
-                color: #1e293b !important;
-                background-color: #ffffff !important;
-            }
+    .prediction-box {
+        background: #0f172a;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #2d3748;
+    }
 
-            .main-header {
-                background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-                padding: 20px;
-                border-radius: 10px;
-                margin-bottom: 20px;
-                border: none;
-                box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
-            }
+    .cost-comparison {
+        display: flex;
+        gap: 20px;
+    }
 
-            .main-header h1 {
-                color: #ffffff !important;
-            }
+    .cost-box {
+        flex: 1;
+        padding: 15px;
+        border-radius: 8px;
+        background: #1a1a2e;
+    }
 
-            .main-header p {
-                color: #e2e8f0 !important;
-            }
+    .cost-repair { border-left: 4px solid #22c55e; }
+    .cost-emergency { border-left: 4px solid #ef4444; }
+</style>
+"""
 
-            .stat-card {
-                background: #ffffff;
-                padding: 20px;
-                border-radius: 8px;
-                border: 2px solid #cbd5e1;
-                text-align: center;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
+# Apply dark theme CSS
+st.markdown(DARK_THEME_CSS, unsafe_allow_html=True)
 
-            .defect-card {
-                background: #ffffff;
-                padding: 15px;
-                border-radius: 6px;
-                margin: 10px 0;
-                border-left: 4px solid #f97316;
-                border: 2px solid #e2e8f0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-            }
-
-            .grade-badge {
-                display: inline-block;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 18px;
-            }
-
-            .grade-1 { background-color: #16a34a; color: white; }
-            .grade-2 { background-color: #65a30d; color: white; }
-            .grade-3 { background-color: #ca8a04; color: white; }
-            .grade-4 { background-color: #ea580c; color: white; }
-            .grade-5 { background-color: #dc2626; color: white; }
-
-            .risk-high { color: #dc2626; font-weight: bold; }
-            .risk-medium { color: #ea580c; font-weight: bold; }
-            .risk-low { color: #16a34a; font-weight: bold; }
-
-            .prediction-box {
-                background: #ffffff;
-                padding: 20px;
-                border-radius: 8px;
-                border: 2px solid #cbd5e1;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-
-            .cost-comparison {
-                display: flex;
-                gap: 20px;
-            }
-
-            .cost-box {
-                flex: 1;
-                padding: 15px;
-                border-radius: 8px;
-                background: #ffffff;
-                border: 2px solid #e2e8f0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-            }
-
-            .cost-repair { border-left: 4px solid #16a34a; }
-            .cost-emergency { border-left: 4px solid #dc2626; }
-
-            /* Main content text should be dark */
-            .main .stMarkdown, .main p, .main span, .main div, .main label {
-                color: #1e293b !important;
-            }
-
-            /* Style expanders */
-            .streamlit-expanderHeader {
-                background-color: #e8f0f8 !important;
-                border-radius: 8px;
-                border: 1px solid #cbd5e1 !important;
-            }
-
-            /* Style expander content */
-            .streamlit-expanderContent {
-                background-color: #ffffff !important;
-                border: 1px solid #e2e8f0 !important;
-                border-top: none !important;
-            }
-
-            /* Style metrics */
-            [data-testid="stMetricValue"] {
-                color: #1e3a5f !important;
-                font-weight: bold !important;
-            }
-
-            [data-testid="stMetricLabel"] {
-                color: #475569 !important;
-            }
-
-            /* Tabs styling */
-            .stTabs [data-baseweb="tab-list"] {
-                background-color: #e8f0f8;
-                border-radius: 8px;
-                padding: 4px;
-                border: 1px solid #cbd5e1;
-            }
-
-            .stTabs [data-baseweb="tab"] {
-                color: #1e293b !important;
-                font-weight: 500;
-            }
-
-            .stTabs [aria-selected="true"] {
-                background-color: #1e3a5f !important;
-                color: white !important;
-            }
-
-            /* Input fields */
-            .stSelectbox > div > div,
-            .stNumberInput > div > div > input,
-            .stTextInput > div > div > input {
-                background-color: #ffffff !important;
-                border: 2px solid #cbd5e1 !important;
-                color: #1e293b !important;
-            }
-
-            /* Buttons */
-            .stButton > button {
-                background-color: #1e3a5f !important;
-                color: white !important;
-                border: none !important;
-                font-weight: 600 !important;
-                box-shadow: 0 2px 4px rgba(30, 58, 95, 0.3) !important;
-            }
-
-            .stButton > button:hover {
-                background-color: #2d5a87 !important;
-                box-shadow: 0 4px 8px rgba(30, 58, 95, 0.4) !important;
-            }
-
-            /* Info boxes */
-            .stAlert {
-                background-color: #e8f4fc !important;
-                border: 1px solid #60a5fa !important;
-                color: #1e293b !important;
-            }
-
-            /* Success boxes */
-            [data-testid="stAlert"][data-type="success"] {
-                background-color: #dcfce7 !important;
-                border: 1px solid #16a34a !important;
-            }
-
-            /* Dividers */
-            hr {
-                border-color: #cbd5e1 !important;
-            }
-
-            /* File uploader */
-            [data-testid="stFileUploader"] {
-                background-color: #ffffff !important;
-                border: 2px dashed #cbd5e1 !important;
-                border-radius: 8px !important;
-            }
-
-            /* Checkboxes */
-            .stCheckbox > label {
-                color: #e2e8f0 !important;
-            }
-
-            /* Caption text */
-            .stCaption, small {
-                color: #64748b !important;
-            }
-        </style>
-        """
-    else:
-        return """
-        <style>
-            /* Dark theme */
-            .stApp {
-                background-color: #0a0a0f;
-            }
-
-            .main-header {
-                background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
-                padding: 20px;
-                border-radius: 10px;
-                margin-bottom: 20px;
-                border: 1px solid #2d3748;
-            }
-
-            .stat-card {
-                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-                padding: 20px;
-                border-radius: 8px;
-                border: 1px solid #2d3748;
-                text-align: center;
-            }
-
-            .defect-card {
-                background: #1a1a2e;
-                padding: 15px;
-                border-radius: 6px;
-                margin: 10px 0;
-                border-left: 4px solid #f97316;
-            }
-
-            .grade-badge {
-                display: inline-block;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 18px;
-            }
-
-            .grade-1 { background-color: #22c55e; color: white; }
-            .grade-2 { background-color: #84cc16; color: white; }
-            .grade-3 { background-color: #eab308; color: white; }
-            .grade-4 { background-color: #f97316; color: white; }
-            .grade-5 { background-color: #ef4444; color: white; }
-
-            .risk-high { color: #ef4444; }
-            .risk-medium { color: #f97316; }
-            .risk-low { color: #22c55e; }
-
-            .prediction-box {
-                background: #0f172a;
-                padding: 20px;
-                border-radius: 8px;
-                border: 1px solid #2d3748;
-            }
-
-            .cost-comparison {
-                display: flex;
-                gap: 20px;
-            }
-
-            .cost-box {
-                flex: 1;
-                padding: 15px;
-                border-radius: 8px;
-                background: #1a1a2e;
-            }
-
-            .cost-repair { border-left: 4px solid #22c55e; }
-            .cost-emergency { border-left: 4px solid #ef4444; }
-
-            /* Dark theme text colors for custom HTML */
-            [data-theme="dark"] {
-                --text-primary: #e2e8f0;
-                --text-secondary: #94a3b8;
-                --text-muted: #64748b;
-                --bg-card: #1a1a2e;
-                --bg-card-alt: #0f172a;
-                --border-color: #2d3748;
-            }
-        </style>
-        """
-
-# Apply theme CSS
-st.markdown(get_theme_css(st.session_state.get('theme', 'dark')), unsafe_allow_html=True)
-
+# Dark theme colors (used by dynamic HTML elements)
+THEME_COLORS = {
+    'bg_primary': '#0a0a0f',
+    'bg_secondary': '#0f172a',
+    'bg_card': '#1e293b',
+    'bg_card_alt': '#1a1a2e',
+    'text_primary': '#e2e8f0',
+    'text_secondary': '#94a3b8',
+    'text_muted': '#64748b',
+    'border': '#2d3748',
+    'accent': '#60a5fa',
+    'accent_light': '#93c5fd',
+    'success': '#22c55e',
+    'danger': '#ef4444',
+    'warning': '#eab308',
+}
 
 def get_theme_colors() -> dict:
-    """Get color palette based on current theme."""
-    theme = st.session_state.get('theme', 'dark')
-    if theme == 'light':
-        return {
-            'bg_primary': '#f0f4f8',
-            'bg_secondary': '#e2e8f0',
-            'bg_card': '#ffffff',
-            'bg_card_alt': '#f8fafc',
-            'text_primary': '#1e293b',
-            'text_secondary': '#334155',
-            'text_muted': '#475569',
-            'border': '#cbd5e1',
-            'accent': '#1e3a5f',
-            'accent_light': '#2d5a87',
-            'success': '#16a34a',
-            'danger': '#dc2626',
-            'warning': '#ca8a04',
-        }
-    else:
-        return {
-            'bg_primary': '#0a0a0f',
-            'bg_secondary': '#0f172a',
-            'bg_card': '#1e293b',
-            'bg_card_alt': '#1a1a2e',
-            'text_primary': '#e2e8f0',
-            'text_secondary': '#94a3b8',
-            'text_muted': '#64748b',
-            'border': '#2d3748',
-            'accent': '#60a5fa',
-            'accent_light': '#93c5fd',
-            'success': '#22c55e',
-            'danger': '#ef4444',
-            'warning': '#eab308',
-        }
+    """Get color palette for the dark theme."""
+    return THEME_COLORS
 
 
 def get_grade_color(grade: int) -> str:
@@ -615,16 +359,14 @@ Cost analysis: Proactive CIPP rehabilitation ($15,000) vs emergency dig-and-repl
 
 
 def main():
-    # Header - always white text on dark gradient background
-    theme = st.session_state.get('theme', 'dark')
-
+    # Header
     st.markdown("""
     <div class="main-header">
-        <h1 style="margin: 0; color: #ffffff;">🔍 SewerSentinel</h1>
-        <p style="margin: 5px 0 0 0; color: #e2e8f0;">
+        <h1 style="margin: 0; color: #e2e8f0;">🔍 SewerSentinel</h1>
+        <p style="margin: 5px 0 0 0; color: #94a3b8;">
             Autonomous Underground Infrastructure Predictive Failure System
         </p>
-        <p style="margin: 5px 0 0 0; color: #cbd5e1; font-size: 12px;">
+        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">
             Powered by Google Gemini 3 | PACP Compliant
         </p>
     </div>
@@ -671,23 +413,11 @@ def main():
 
     # Minimal sidebar - just branding
     with st.sidebar:
-        # Theme toggle at the top
-        theme_col1, theme_col2 = st.columns([3, 1])
-        with theme_col2:
-            if st.button("🌙" if st.session_state.get('theme') == 'light' else "☀️", help="Toggle light/dark mode"):
-                st.session_state['theme'] = 'dark' if st.session_state.get('theme') == 'light' else 'light'
-                st.rerun()
-
-        # Branding with theme-aware colors
-        theme = st.session_state.get('theme', 'dark')
-        title_color = "#1e293b" if theme == 'light' else "#e2e8f0"
-        subtitle_color = "#475569" if theme == 'light' else "#64748b"
-
-        st.markdown(f"""
+        st.markdown("""
         <div style="text-align: center; padding: 20px 0;">
             <div style="font-size: 48px;">🔍</div>
-            <h2 style="margin: 10px 0 5px 0; color: {title_color};">SewerSentinel</h2>
-            <p style="color: {subtitle_color}; font-size: 12px; margin: 0;">
+            <h2 style="margin: 10px 0 5px 0; color: #e2e8f0;">SewerSentinel</h2>
+            <p style="color: #64748b; font-size: 12px; margin: 0;">
                 AI-Powered Pipe Analysis
             </p>
         </div>
