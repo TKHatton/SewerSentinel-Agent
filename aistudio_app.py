@@ -178,7 +178,7 @@ def get_engine():
 
 def get_demo_result():
     """Generate a realistic demo analysis result for showcasing the UI."""
-    from analysis_engine import AnalysisResult, DetectedDefect, PredictionResult
+    from analysis_engine import AnalysisResult, DetectedDefect, PredictionResult, RepairItem
 
     # Create sample defects
     defects = [
@@ -216,6 +216,42 @@ def get_demo_result():
         )
     ]
 
+    # Create sample repair items for demo
+    repair_items = [
+        RepairItem(
+            defect_code="CC",
+            defect_description="Circumferential Crack (Grade 4)",
+            repair_method="CIPP liner section",
+            estimated_cost=7500.0,
+            priority="short-term",
+            notes="Circumferential cracks may indicate joint stress or differential settlement"
+        ),
+        RepairItem(
+            defect_code="RM",
+            defect_description="Root Intrusion (Medium) (Grade 3)",
+            repair_method="Root cutting + joint sealing",
+            estimated_cost=2500.0,
+            priority="medium-term",
+            notes="Medium roots are actively growing - seal entry points after removal"
+        ),
+        RepairItem(
+            defect_code="I",
+            defect_description="Infiltration (Grade 3)",
+            repair_method="Internal joint sealing + grouting",
+            estimated_cost=3500.0,
+            priority="medium-term",
+            notes="Infiltration indicates compromised pipe integrity and adds to treatment load"
+        ),
+        RepairItem(
+            defect_code="COR",
+            defect_description="Corrosion (Grade 2)",
+            repair_method="Corrosion inhibitor + coating",
+            estimated_cost=1500.0,
+            priority="long-term",
+            notes="Corrosion is progressive - early treatment prevents wall loss"
+        )
+    ]
+
     # Create prediction result
     prediction = PredictionResult(
         pipe_id="DEMO-PIPE-001",
@@ -234,8 +270,8 @@ def get_demo_result():
         ],
         recommended_action="Schedule repair within 6-9 months. Recommend CIPP lining for crack remediation and root cutting. Monitor infiltration monthly until repair.",
         priority_rank=1,
-        cost_estimate_repair=18500.0,
-        cost_estimate_emergency=142500.0,
+        cost_estimate_repair=15000.0,  # Sum of itemized repairs
+        cost_estimate_emergency=112500.0,  # Emergency multiplier applied
         confidence_interval="±4 months",
         reasoning="""This pipe shows multiple interacting defects that create a compound failure risk.
 
@@ -252,7 +288,8 @@ The floor corrosion, while currently Grade 2, indicates hydrogen sulfide attack 
 
 Given the 45-year pipe age, concrete strength has likely degraded 20-30% from original specifications. Combined with heavy traffic load creating cyclic stress, I predict progression to Grade 5 within 12-14 months if untreated.
 
-Cost analysis: Proactive CIPP rehabilitation ($18,500) vs emergency dig-and-replace after collapse under roadway ($142,500 including traffic control, emergency response, environmental cleanup, and expedited materials)."""
+Cost analysis: Proactive CIPP rehabilitation ($15,000) vs emergency dig-and-replace after collapse under roadway ($112,500 including traffic control, emergency response, environmental cleanup, and expedited materials).""",
+        repair_items=repair_items
     )
 
     # Create full analysis result
@@ -263,7 +300,7 @@ Cost analysis: Proactive CIPP rehabilitation ($18,500) vs emergency dig-and-repl
         overall_grade=4,
         quick_rating="0102",
         prediction=prediction,
-        executive_summary="This 45-year-old concrete pipe shows significant structural damage requiring prompt attention. A Grade 4 crack at the crown combined with active water infiltration and root intrusion creates high failure risk. Without repair within 9 months, there is substantial risk of collapse under the roadway. Proactive repair will save an estimated $124,000 compared to emergency response.",
+        executive_summary="This 45-year-old concrete pipe shows significant structural damage requiring prompt attention. A Grade 4 crack at the crown combined with active water infiltration and root intrusion creates high failure risk. Without repair within 9 months, there is substantial risk of collapse under the roadway. Proactive repair will save an estimated $97,500 compared to emergency response.",
         analysis_timestamp=datetime.now().isoformat(),
         raw_analysis={
             "demo_mode": True,
@@ -272,6 +309,26 @@ Cost analysis: Proactive CIPP rehabilitation ($18,500) vs emergency dig-and-repl
                 "material_confidence": 0.91,
                 "diameter": 18,
                 "water_level": 25
+            },
+            "manual_context": {
+                "pipe_age_years": 45,
+                "pipe_material": "clay",  # Different from AI-detected to show comparison
+                "pipe_diameter_inches": 12,  # Different from AI-detected
+                "depth_feet": 10.0,
+                "traffic_load": "heavy",
+                "soil_type": "clay",
+                "groundwater": "high",
+                "location_type": "residential"
+            },
+            "used_context": {
+                "pipe_age_years": 45,
+                "pipe_material": "concrete",  # Used AI-detected value
+                "pipe_diameter_inches": 18,  # Used AI-detected value
+                "depth_feet": 10.0,
+                "traffic_load": "heavy",
+                "soil_type": "clay",
+                "groundwater": "high",
+                "location_type": "residential"
             }
         }
     )
@@ -305,61 +362,61 @@ def main():
         Get your API key at: [Google AI Studio](https://aistudio.google.com/app/apikey)
         """)
 
-    # Sidebar - Pipe Context
+    # Initialize session state for manual context values
+    if 'manual_context' not in st.session_state:
+        st.session_state['manual_context'] = {
+            'pipe_id': f"PIPE-{datetime.now().strftime('%H%M%S')}",
+            'pipe_age_years': 30,
+            'pipe_diameter_inches': 12,
+            'pipe_material': 'concrete',
+            'depth_feet': 8.0,
+            'traffic_load': 'medium',
+            'soil_type': 'clay',
+            'groundwater': 'medium',
+            'location_type': 'residential'
+        }
+
+    # Use variables from session state
+    pipe_id = st.session_state['manual_context']['pipe_id']
+    pipe_age = st.session_state['manual_context']['pipe_age_years']
+    diameter = st.session_state['manual_context']['pipe_diameter_inches']
+    pipe_material = st.session_state['manual_context']['pipe_material']
+    depth = st.session_state['manual_context']['depth_feet']
+    traffic_load = st.session_state['manual_context']['traffic_load']
+    soil_type = st.session_state['manual_context']['soil_type']
+    groundwater = st.session_state['manual_context']['groundwater']
+    location_type = st.session_state['manual_context']['location_type']
+
+    # Minimal sidebar - just branding
     with st.sidebar:
-        st.header("Pipe Context")
-        st.caption("Provide information about the pipe for better predictions")
-
-        pipe_id = st.text_input("Pipe ID", value=f"PIPE-{datetime.now().strftime('%H%M%S')}")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            pipe_age = st.number_input("Age (years)", min_value=0, max_value=150, value=30)
-        with col2:
-            diameter = st.number_input("Diameter (in)", min_value=4, max_value=120, value=12)
-
-        pipe_material = st.selectbox(
-            "Material",
-            ["concrete", "clay", "pvc", "cast_iron", "hdpe", "unknown"],
-            index=0
-        )
-
-        depth = st.slider("Burial Depth (ft)", 0.0, 30.0, 8.0)
-
-        traffic_load = st.selectbox(
-            "Traffic Load Above",
-            ["none", "light", "medium", "heavy"],
-            index=2
-        )
-
-        soil_type = st.selectbox(
-            "Soil Type",
-            ["clay", "sandy", "loam", "rocky", "unknown"],
-            index=0
-        )
-
-        groundwater = st.selectbox(
-            "Groundwater Level",
-            ["low", "medium", "high"],
-            index=1
-        )
-
-        location_type = st.selectbox(
-            "Location Type",
-            ["residential", "commercial", "industrial", "school", "hospital"],
-            index=0
-        )
+        st.markdown("""
+        <div style="text-align: center; padding: 20px 0;">
+            <div style="font-size: 48px;">🔍</div>
+            <h2 style="margin: 10px 0 5px 0; color: #e2e8f0;">SewerSentinel</h2>
+            <p style="color: #64748b; font-size: 12px; margin: 0;">
+                AI-Powered Pipe Analysis
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.divider()
-        st.caption("About SewerSentinel")
-        st.markdown("""
-        SewerSentinel uses Google's **Gemini 3** to:
-        - Detect defects in pipe inspection images
-        - Predict failure timelines
-        - Prioritize repairs by risk
 
-        Built for the **Gemini 3 Hackathon 2026**.
-        """)
+        st.markdown("""
+        <div style="color: #94a3b8; font-size: 13px;">
+            <p><strong>How to use:</strong></p>
+            <ol style="padding-left: 20px; margin: 10px 0;">
+                <li>Upload a pipe image or try Demo</li>
+                <li>View AI-detected defects</li>
+                <li>Adjust data sources if needed</li>
+                <li>Review predictions & costs</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.divider()
+
+        st.caption("Built for Gemini 3 Hackathon 2026")
+        st.caption("Powered by Google Gemini 3")
 
     # Main content
     tab1, tab2, tab3 = st.tabs(["📸 Analyze Image", "📊 Results", "ℹ️ About PACP"])
@@ -404,147 +461,291 @@ def main():
         if uploaded_file:
             # Clear demo mode when uploading a new file
             st.session_state.pop('demo_mode', None)
-            col1, col2 = st.columns([1, 1])
+
+            # Show image
+            st.subheader("Uploaded Image")
+            image = Image.open(uploaded_file)
+            st.image(image, width=400)
+
+            st.divider()
+
+            # Pre-analysis configuration
+            st.subheader("⚙️ Analysis Configuration")
+            st.markdown("Configure how the analysis should handle pipe characteristics:")
+
+            # Detection mode selection
+            col1, col2 = st.columns(2)
 
             with col1:
-                st.subheader("Uploaded Image")
-                image = Image.open(uploaded_file)
-                st.image(image, use_container_width=True)
+                st.markdown("**Material Detection**")
+                material_mode = st.radio(
+                    "How to determine pipe material:",
+                    options=['ai', 'manual'],
+                    index=0,
+                    key='material_mode_select',
+                    format_func=lambda x: "🤖 Let AI detect from image" if x == 'ai' else "📝 I'll specify manually",
+                    horizontal=True
+                )
+
+                if material_mode == 'manual':
+                    pipe_material = st.selectbox(
+                        "Pipe Material",
+                        ["concrete", "clay", "pvc", "cast_iron", "hdpe", "unknown"],
+                        index=["concrete", "clay", "pvc", "cast_iron", "hdpe", "unknown"].index(
+                            st.session_state['manual_context'].get('pipe_material', 'concrete')
+                        ),
+                        key='config_material'
+                    )
+                    st.session_state['manual_context']['pipe_material'] = pipe_material
 
             with col2:
-                st.subheader("Analysis")
+                st.markdown("**Diameter Detection**")
+                diameter_mode = st.radio(
+                    "How to determine pipe diameter:",
+                    options=['ai', 'manual'],
+                    index=0,
+                    key='diameter_mode_select',
+                    format_func=lambda x: "🤖 Let AI estimate from image" if x == 'ai' else "📝 I'll specify manually",
+                    horizontal=True
+                )
 
-                if st.button("🔍 Analyze with Gemini 3", type="primary", use_container_width=True):
-                    engine = get_engine()
+                if diameter_mode == 'manual':
+                    diameter = st.number_input(
+                        "Pipe Diameter (inches)",
+                        min_value=4,
+                        max_value=120,
+                        value=st.session_state['manual_context'].get('pipe_diameter_inches', 12),
+                        key='config_diameter'
+                    )
+                    st.session_state['manual_context']['pipe_diameter_inches'] = diameter
 
-                    if engine is None:
-                        st.error("Analysis engine not available. Please check your GEMINI_API_KEY.")
-                    else:
-                        with st.spinner("Analyzing image with Gemini 3..."):
-                            try:
-                                # Save uploaded file temporarily
-                                with tempfile.NamedTemporaryFile(
-                                    suffix=Path(uploaded_file.name).suffix,
-                                    delete=False
-                                ) as tmp:
-                                    tmp.write(uploaded_file.getvalue())
-                                    tmp_path = tmp.name
+            # Additional context (always shown, collapsed by default)
+            with st.expander("📋 Additional Pipe Context (improves prediction accuracy)", expanded=False):
+                st.markdown("These values cannot be detected from images - provide them for better predictions:")
 
-                                # Build context
-                                context = {
-                                    "pipe_age_years": pipe_age,
-                                    "pipe_material": pipe_material,
-                                    "pipe_diameter_inches": diameter,
-                                    "depth_feet": depth,
-                                    "traffic_load": traffic_load,
-                                    "soil_type": soil_type,
-                                    "groundwater": groundwater,
-                                    "location_type": location_type
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    new_age = st.number_input(
+                        "Pipe Age (years)",
+                        min_value=0, max_value=150,
+                        value=st.session_state['manual_context'].get('pipe_age_years', 30),
+                        key='config_age'
+                    )
+                    st.session_state['manual_context']['pipe_age_years'] = new_age
+
+                with col2:
+                    new_depth = st.number_input(
+                        "Burial Depth (ft)",
+                        min_value=0.0, max_value=30.0,
+                        value=float(st.session_state['manual_context'].get('depth_feet', 8.0)),
+                        key='config_depth'
+                    )
+                    st.session_state['manual_context']['depth_feet'] = new_depth
+
+                with col3:
+                    traffic_options = ["none", "light", "medium", "heavy"]
+                    new_traffic = st.selectbox(
+                        "Traffic Load Above",
+                        traffic_options,
+                        index=traffic_options.index(st.session_state['manual_context'].get('traffic_load', 'medium')),
+                        key='config_traffic'
+                    )
+                    st.session_state['manual_context']['traffic_load'] = new_traffic
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    soil_options = ["clay", "sandy", "loam", "rocky", "unknown"]
+                    new_soil = st.selectbox(
+                        "Soil Type",
+                        soil_options,
+                        index=soil_options.index(st.session_state['manual_context'].get('soil_type', 'clay')),
+                        key='config_soil'
+                    )
+                    st.session_state['manual_context']['soil_type'] = new_soil
+
+                with col2:
+                    gw_options = ["low", "medium", "high"]
+                    new_gw = st.selectbox(
+                        "Groundwater Level",
+                        gw_options,
+                        index=gw_options.index(st.session_state['manual_context'].get('groundwater', 'medium')),
+                        key='config_gw'
+                    )
+                    st.session_state['manual_context']['groundwater'] = new_gw
+
+                with col3:
+                    loc_options = ["residential", "commercial", "industrial", "school", "hospital"]
+                    new_loc = st.selectbox(
+                        "Location Type",
+                        loc_options,
+                        index=loc_options.index(st.session_state['manual_context'].get('location_type', 'residential')),
+                        key='config_loc'
+                    )
+                    st.session_state['manual_context']['location_type'] = new_loc
+
+            st.divider()
+
+            # Analyze button
+            if st.button("🔍 Analyze with Gemini 3", type="primary", use_container_width=True):
+                # Store the chosen modes
+                st.session_state['data_sources'] = {
+                    'material': material_mode,
+                    'diameter': diameter_mode
+                }
+
+                engine = get_engine()
+
+                if engine is None:
+                    st.error("Analysis engine not available. Please check your GEMINI_API_KEY.")
+                else:
+                    with st.spinner("Analyzing image with Gemini 3..."):
+                        try:
+                            # Save uploaded file temporarily
+                            with tempfile.NamedTemporaryFile(
+                                suffix=Path(uploaded_file.name).suffix,
+                                delete=False
+                            ) as tmp:
+                                tmp.write(uploaded_file.getvalue())
+                                tmp_path = tmp.name
+
+                            # Get values from session state
+                            manual_ctx = st.session_state['manual_context']
+
+                            # Build context with manual values first
+                            context = {
+                                "pipe_age_years": manual_ctx.get('pipe_age_years', 30),
+                                "pipe_material": manual_ctx.get('pipe_material', 'concrete'),
+                                "pipe_diameter_inches": manual_ctx.get('pipe_diameter_inches', 12),
+                                "depth_feet": manual_ctx.get('depth_feet', 8.0),
+                                "traffic_load": manual_ctx.get('traffic_load', 'medium'),
+                                "soil_type": manual_ctx.get('soil_type', 'clay'),
+                                "groundwater": manual_ctx.get('groundwater', 'medium'),
+                                "location_type": manual_ctx.get('location_type', 'residential')
+                            }
+
+                            # First, run detection to get pipe characteristics
+                            detection_result = engine.analyze_image(tmp_path, pipe_id)
+
+                            # Check for auto-detected pipe characteristics
+                            auto_detected = []
+                            detected_material = detection_result.get('pipe_material_observed', 'unknown')
+                            material_confidence = detection_result.get('pipe_material_confidence', 0)
+                            detected_diameter = detection_result.get('estimated_diameter_inches')
+                            detected_water_level = detection_result.get('water_level_percent')
+
+                            # Apply AI detection ONLY if user selected AI mode
+                            if material_mode == 'ai' and detected_material and detected_material != 'unknown' and material_confidence >= 0.5:
+                                # Map detected material to dropdown values
+                                material_map = {
+                                    'concrete': 'concrete',
+                                    'clay': 'clay',
+                                    'vitrified clay': 'clay',
+                                    'pvc': 'pvc',
+                                    'cast_iron': 'cast_iron',
+                                    'cast iron': 'cast_iron',
+                                    'brick': 'concrete',
+                                    'hdpe': 'hdpe'
                                 }
+                                mapped_material = material_map.get(detected_material.lower(), context['pipe_material'])
+                                if mapped_material in ['concrete', 'clay', 'pvc', 'cast_iron', 'hdpe']:
+                                    context['pipe_material'] = mapped_material
+                                    auto_detected.append(f"Material: {mapped_material} ({material_confidence:.0%} confidence)")
 
-                                # First, run detection to get pipe characteristics
-                                detection_result = engine.analyze_image(tmp_path, pipe_id)
+                            if diameter_mode == 'ai' and detected_diameter and isinstance(detected_diameter, (int, float)) and detected_diameter > 0:
+                                context['pipe_diameter_inches'] = int(detected_diameter)
+                                auto_detected.append(f"Diameter: {int(detected_diameter)} inches")
 
-                                # Check for auto-detected pipe characteristics
-                                auto_detected = []
-                                detected_material = detection_result.get('pipe_material_observed', 'unknown')
-                                material_confidence = detection_result.get('pipe_material_confidence', 0)
-                                detected_diameter = detection_result.get('estimated_diameter_inches')
-                                detected_water_level = detection_result.get('water_level_percent')
+                            # Run full analysis with the configured context
+                            result = engine.create_full_analysis(
+                                image_path=tmp_path,
+                                pipe_id=pipe_id,
+                                context=context
+                            )
 
-                                # Update context with detected values if confidence is high
-                                if detected_material and detected_material != 'unknown' and material_confidence >= 0.7:
-                                    # Map detected material to dropdown values
-                                    material_map = {
-                                        'concrete': 'concrete',
-                                        'clay': 'clay',
-                                        'vitrified clay': 'clay',
-                                        'pvc': 'pvc',
-                                        'cast_iron': 'cast_iron',
-                                        'cast iron': 'cast_iron',
-                                        'brick': 'concrete',  # Map brick to concrete for similar properties
-                                        'hdpe': 'hdpe'
-                                    }
-                                    mapped_material = material_map.get(detected_material.lower(), pipe_material)
-                                    if mapped_material in ['concrete', 'clay', 'pvc', 'cast_iron', 'hdpe']:
-                                        context['pipe_material'] = mapped_material
-                                        auto_detected.append(f"Material: {mapped_material} ({material_confidence:.0%} confidence)")
+                            # Store detected characteristics in result for display
+                            result.raw_analysis['auto_detected'] = {
+                                'material': detected_material,
+                                'material_confidence': material_confidence,
+                                'diameter': detected_diameter,
+                                'water_level': detected_water_level
+                            }
 
-                                if detected_diameter and isinstance(detected_diameter, (int, float)) and detected_diameter > 0:
-                                    context['pipe_diameter_inches'] = int(detected_diameter)
-                                    auto_detected.append(f"Diameter: {int(detected_diameter)} inches")
+                            # Store manual context values for comparison
+                            result.raw_analysis['manual_context'] = manual_ctx.copy()
 
-                                # Run full analysis with potentially updated context
-                                result = engine.create_full_analysis(
-                                    image_path=tmp_path,
-                                    pipe_id=pipe_id,
-                                    context=context
-                                )
+                            # Store the context that was actually used
+                            result.raw_analysis['used_context'] = context.copy()
 
-                                # Store detected characteristics in result for display
-                                result.raw_analysis['auto_detected'] = {
-                                    'material': detected_material,
-                                    'material_confidence': material_confidence,
-                                    'diameter': detected_diameter,
-                                    'water_level': detected_water_level
-                                }
+                            # Store which modes were selected
+                            result.raw_analysis['selected_modes'] = {
+                                'material': material_mode,
+                                'diameter': diameter_mode
+                            }
 
-                                # Store result in session state
-                                st.session_state['analysis_result'] = result
-                                st.session_state['analysis_image'] = image
+                            # Store result in session state
+                            st.session_state['analysis_result'] = result
+                            st.session_state['analysis_image'] = image
 
-                                # Clean up temp file
-                                os.unlink(tmp_path)
+                            # Clean up temp file
+                            os.unlink(tmp_path)
 
-                                # Show success message with auto-detection info
-                                if auto_detected:
-                                    st.success(f"Analysis complete! Auto-detected: {', '.join(auto_detected)}")
-                                else:
-                                    st.success("Analysis complete! Go to Results tab to see details.")
+                            # Show success message
+                            mode_info = []
+                            if material_mode == 'ai' and auto_detected:
+                                mode_info.append(f"AI detected: {', '.join(auto_detected)}")
+                            if material_mode == 'manual':
+                                mode_info.append(f"Using manual material: {context['pipe_material']}")
+                            if diameter_mode == 'manual':
+                                mode_info.append(f"Using manual diameter: {context['pipe_diameter_inches']}\"")
 
-                            except Exception as e:
-                                error_msg = str(e).lower()
+                            if mode_info:
+                                st.success(f"Analysis complete! {' | '.join(mode_info)}")
+                            else:
+                                st.success("Analysis complete! Go to Results tab to see details.")
 
-                                # Provide user-friendly error messages
-                                if "api" in error_msg or "key" in error_msg or "authentication" in error_msg:
-                                    st.error("""
-                                    **API Authentication Error**
+                        except Exception as e:
+                            error_msg = str(e).lower()
 
-                                    Please check that your GEMINI_API_KEY is valid and has not expired.
-                                    You can get a new API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
-                                    """)
-                                elif "quota" in error_msg or "rate" in error_msg or "limit" in error_msg:
-                                    st.error("""
-                                    **Rate Limit Exceeded**
+                            # Provide user-friendly error messages
+                            if "api" in error_msg or "key" in error_msg or "authentication" in error_msg:
+                                st.error("""
+                                **API Authentication Error**
 
-                                    The API rate limit has been reached. Please wait a moment and try again.
-                                    If this persists, consider upgrading your API plan.
-                                    """)
-                                elif "timeout" in error_msg or "timed out" in error_msg:
-                                    st.error("""
-                                    **Request Timeout**
+                                Please check that your GEMINI_API_KEY is valid and has not expired.
+                                You can get a new API key at [Google AI Studio](https://aistudio.google.com/app/apikey).
+                                """)
+                            elif "quota" in error_msg or "rate" in error_msg or "limit" in error_msg:
+                                st.error("""
+                                **Rate Limit Exceeded**
 
-                                    The analysis request timed out. This can happen with large images or high API load.
-                                    Please try again, or try with a smaller image.
-                                    """)
-                                elif "parse" in error_msg or "json" in error_msg:
-                                    st.warning("""
-                                    **Partial Analysis Complete**
+                                The API rate limit has been reached. Please wait a moment and try again.
+                                If this persists, consider upgrading your API plan.
+                                """)
+                            elif "timeout" in error_msg or "timed out" in error_msg:
+                                st.error("""
+                                **Request Timeout**
 
-                                    The AI response couldn't be fully parsed. This sometimes happens with complex images.
-                                    Try analyzing again - results may vary between attempts.
-                                    """)
-                                else:
-                                    st.error(f"""
-                                    **Analysis Failed**
+                                The analysis request timed out. This can happen with large images or high API load.
+                                Please try again, or try with a smaller image.
+                                """)
+                            elif "parse" in error_msg or "json" in error_msg:
+                                st.warning("""
+                                **Partial Analysis Complete**
 
-                                    Error: {str(e)[:200]}
+                                The AI response couldn't be fully parsed. This sometimes happens with complex images.
+                                Try analyzing again - results may vary between attempts.
+                                """)
+                            else:
+                                st.error(f"""
+                                **Analysis Failed**
 
-                                    Please try again. If the problem persists, try:
-                                    - Using a different image
-                                    - Checking your internet connection
-                                    - Verifying your API key
-                                    """)
+                                Error: {str(e)[:200]}
+
+                                Please try again. If the problem persists, try:
+                                - Using a different image
+                                - Checking your internet connection
+                                - Verifying your API key
+                                """)
 
                 # Quick stats if result exists
                 if 'analysis_result' in st.session_state:
@@ -580,189 +781,337 @@ def main():
             with col3:
                 st.metric("Quick Rating", result.quick_rating)
 
-            # Executive Summary
-            st.subheader("Executive Summary")
-            st.info(result.executive_summary)
+            # Executive Summary (always visible - it's the key takeaway)
+            st.info(f"**Executive Summary:** {result.executive_summary}")
 
-            # Defects
-            st.subheader(f"Detected Defects ({len(result.defects)})")
+            # Data Sources Section - Show what was used (read-only summary)
+            used_context = result.raw_analysis.get('used_context', {})
+            selected_modes = result.raw_analysis.get('selected_modes', {})
+            auto_detected = result.raw_analysis.get('auto_detected', {})
 
-            if not result.defects:
-                st.success("No significant defects detected!")
-            else:
-                for defect in result.defects:
-                    with st.expander(
-                        f"**{defect.defect_code}** - {DEFECT_CODE_DESCRIPTIONS.get(defect.defect_code, defect.defect_type)} (Grade {defect.grade})",
-                        expanded=True
-                    ):
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.markdown(f"**Grade:** {defect.grade}")
-                        with col2:
-                            st.markdown(f"**Location:** {defect.location_in_pipe}")
-                        with col3:
-                            st.markdown(f"**Confidence:** {defect.confidence:.0%}")
+            # Only show if we have context data
+            if used_context:
+                with st.expander("⚙️ Analysis Configuration Used", expanded=False):
+                    st.markdown("These values were used to generate predictions:")
 
-                        if defect.description:
-                            st.markdown(f"*{defect.description}*")
+                    # Show material and diameter with source indicator
+                    col1, col2 = st.columns(2)
 
-            # Prediction
-            if result.prediction:
-                st.subheader("Failure Prediction")
+                    with col1:
+                        material_mode = selected_modes.get('material', 'manual')
+                        material_val = used_context.get('pipe_material', 'unknown')
+                        material_conf = auto_detected.get('material_confidence', 0)
+                        source_icon = "🤖" if material_mode == 'ai' else "📝"
+                        source_label = f"AI ({material_conf:.0%})" if material_mode == 'ai' else "Manual"
 
-                pred = result.prediction
-                col1, col2, col3, col4 = st.columns(4)
-
-                with col1:
-                    color = get_risk_color(pred.failure_risk_score)
-                    st.markdown(f"""
-                    <div style="text-align: center;">
-                        <div style="font-size: 48px; font-weight: bold; color: {color};">
-                            {pred.failure_risk_score}%
+                        st.markdown(f"""
+                        <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
+                            <div style="color: #94a3b8; font-size: 12px;">{source_icon} {source_label}</div>
+                            <div style="color: #e2e8f0; font-size: 14px; font-weight: bold;">Material: {material_val.replace('_', ' ').title()}</div>
                         </div>
-                        <div style="color: #94a3b8;">Risk Score</div>
+                        """, unsafe_allow_html=True)
+
+                    with col2:
+                        diameter_mode = selected_modes.get('diameter', 'manual')
+                        diameter_val = used_context.get('pipe_diameter_inches', 12)
+                        source_icon = "🤖" if diameter_mode == 'ai' else "📝"
+                        source_label = "AI Estimated" if diameter_mode == 'ai' else "Manual"
+
+                        st.markdown(f"""
+                        <div style="background: #1e293b; padding: 12px; border-radius: 6px;">
+                            <div style="color: #94a3b8; font-size: 12px;">{source_icon} {source_label}</div>
+                            <div style="color: #e2e8f0; font-size: 14px; font-weight: bold;">Diameter: {diameter_val}"</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # Other context values
+                    st.markdown("---")
+                    st.markdown("**Additional Context:**")
+
+                    context_html = f"""
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
+                            <div style="color: #94a3b8; font-size: 11px;">AGE</div>
+                            <div style="color: #e2e8f0;">{used_context.get('pipe_age_years', 'N/A')} years</div>
+                        </div>
+                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
+                            <div style="color: #94a3b8; font-size: 11px;">DEPTH</div>
+                            <div style="color: #e2e8f0;">{used_context.get('depth_feet', 'N/A')} ft</div>
+                        </div>
+                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
+                            <div style="color: #94a3b8; font-size: 11px;">TRAFFIC</div>
+                            <div style="color: #e2e8f0;">{used_context.get('traffic_load', 'N/A').title()}</div>
+                        </div>
+                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
+                            <div style="color: #94a3b8; font-size: 11px;">SOIL</div>
+                            <div style="color: #e2e8f0;">{used_context.get('soil_type', 'N/A').title()}</div>
+                        </div>
+                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
+                            <div style="color: #94a3b8; font-size: 11px;">GROUNDWATER</div>
+                            <div style="color: #e2e8f0;">{used_context.get('groundwater', 'N/A').title()}</div>
+                        </div>
+                        <div style="background: #1e293b; padding: 8px; border-radius: 4px;">
+                            <div style="color: #94a3b8; font-size: 11px;">LOCATION</div>
+                            <div style="color: #e2e8f0;">{used_context.get('location_type', 'N/A').title()}</div>
+                        </div>
                     </div>
-                    """, unsafe_allow_html=True)
+                    """
+                    st.markdown(context_html, unsafe_allow_html=True)
 
-                with col2:
-                    if pred.estimated_time_to_failure_months:
-                        st.metric(
-                            "Time to Failure",
-                            f"{pred.estimated_time_to_failure_months} mo",
-                            help=f"Confidence: {pred.confidence_interval}"
-                        )
-                    else:
-                        st.metric("Time to Failure", "N/A")
+                    st.caption("💡 To change these values, go back to the Analyze tab and reconfigure before running a new analysis.")
 
-                with col3:
-                    st.metric("Current Grade", pred.current_grade)
+            # Defects Section - Collapsible
+            defect_count = len(result.defects)
+            max_grade = max([d.grade for d in result.defects], default=0) if result.defects else 0
+            defect_summary = f"🔍 Detected Defects ({defect_count}) - Highest Grade: {max_grade}" if result.defects else "🔍 Detected Defects (0) - No issues found"
 
-                with col4:
-                    st.metric(
-                        "6-Month Prediction",
-                        pred.predicted_grade_6_months,
-                        delta=pred.predicted_grade_6_months - pred.current_grade if pred.predicted_grade_6_months > pred.current_grade else None,
-                        delta_color="inverse"
-                    )
-
-                # Grade progression
-                st.markdown("**Grade Progression:**")
-                prog_col1, prog_col2, prog_col3 = st.columns(3)
-                with prog_col1:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: {get_grade_color(pred.current_grade)};
-                         padding: 10px; border-radius: 6px; color: white;">
-                        <div>Now</div>
-                        <div style="font-size: 24px; font-weight: bold;">Grade {pred.current_grade}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with prog_col2:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: {get_grade_color(pred.predicted_grade_6_months)};
-                         padding: 10px; border-radius: 6px; color: white;">
-                        <div>6 Months</div>
-                        <div style="font-size: 24px; font-weight: bold;">Grade {pred.predicted_grade_6_months}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with prog_col3:
-                    st.markdown(f"""
-                    <div style="text-align: center; background: {get_grade_color(pred.predicted_grade_12_months)};
-                         padding: 10px; border-radius: 6px; color: white;">
-                        <div>12 Months</div>
-                        <div style="font-size: 24px; font-weight: bold;">Grade {pred.predicted_grade_12_months}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                # Risk Level Explanation
-                risk_score = pred.failure_risk_score
-                if risk_score >= 80:
-                    risk_level = "CRITICAL"
-                    risk_explanation = "Immediate attention required. High probability of failure within the prediction window."
-                    risk_icon = "🔴"
-                elif risk_score >= 60:
-                    risk_level = "HIGH"
-                    risk_explanation = "Significant risk. Schedule repair as soon as possible to prevent emergency failure."
-                    risk_icon = "🟠"
-                elif risk_score >= 40:
-                    risk_level = "MODERATE"
-                    risk_explanation = "Notable concern. Plan for repair within the next budget cycle."
-                    risk_icon = "🟡"
+            with st.expander(defect_summary, expanded=True):
+                if not result.defects:
+                    st.success("No significant defects detected!")
                 else:
-                    risk_level = "LOW"
-                    risk_explanation = "Acceptable condition. Continue routine monitoring."
-                    risk_icon = "🟢"
+                    for defect in result.defects:
+                        grade_color = get_grade_color(defect.grade)
+                        st.markdown(f"""
+                        <div style="background: #1e293b; padding: 12px 15px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {grade_color};">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="color: {grade_color}; font-weight: bold;">{defect.defect_code}</span>
+                                    <span style="color: #e2e8f0; margin-left: 8px;">{DEFECT_CODE_DESCRIPTIONS.get(defect.defect_code, defect.defect_type)}</span>
+                                </div>
+                                <span style="background: {grade_color}; color: white; padding: 2px 10px; border-radius: 4px; font-weight: bold;">Grade {defect.grade}</span>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 13px; margin-top: 6px;">
+                                📍 {defect.location_in_pipe} | Confidence: {defect.confidence:.0%}
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 13px; margin-top: 4px; font-style: italic;">
+                                {defect.description if defect.description else ''}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-                st.markdown(f"""
-                <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                    <div style="font-size: 16px; color: {get_risk_color(risk_score)};">
-                        {risk_icon} <strong>Risk Level: {risk_level}</strong>
-                    </div>
-                    <div style="color: #94a3b8; margin-top: 5px;">
-                        {risk_explanation}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+            # Prediction Section - Collapsible
+            if result.prediction:
+                pred = result.prediction
+                risk_color = get_risk_color(pred.failure_risk_score)
+                prediction_summary = f"📊 Failure Prediction - Risk: {pred.failure_risk_score:.0f}% | Time to Failure: {pred.estimated_time_to_failure_months} months"
 
-                # Time to Failure with Confidence
-                if pred.estimated_time_to_failure_months:
+                with st.expander(prediction_summary, expanded=True):
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    with col1:
+                        color = get_risk_color(pred.failure_risk_score)
+                        st.markdown(f"""
+                        <div style="text-align: center;">
+                            <div style="font-size: 48px; font-weight: bold; color: {color};">
+                                {pred.failure_risk_score:.0f}%
+                            </div>
+                            <div style="color: #94a3b8;">Risk Score</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    with col2:
+                        if pred.estimated_time_to_failure_months:
+                            st.metric(
+                                "Time to Failure",
+                                f"{pred.estimated_time_to_failure_months} mo",
+                                help=f"Confidence: {pred.confidence_interval}"
+                            )
+                        else:
+                            st.metric("Time to Failure", "N/A")
+
+                    with col3:
+                        st.metric("Current Grade", pred.current_grade)
+
+                    with col4:
+                        st.metric(
+                            "6-Month Prediction",
+                            pred.predicted_grade_6_months,
+                            delta=pred.predicted_grade_6_months - pred.current_grade if pred.predicted_grade_6_months > pred.current_grade else None,
+                            delta_color="inverse"
+                        )
+
+                    # Grade progression
+                    st.markdown("**Grade Progression:**")
+                    prog_col1, prog_col2, prog_col3 = st.columns(3)
+                    with prog_col1:
+                        st.markdown(f"""
+                        <div style="text-align: center; background: {get_grade_color(pred.current_grade)};
+                             padding: 10px; border-radius: 6px; color: white;">
+                            <div>Now</div>
+                            <div style="font-size: 24px; font-weight: bold;">Grade {pred.current_grade}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with prog_col2:
+                        st.markdown(f"""
+                        <div style="text-align: center; background: {get_grade_color(pred.predicted_grade_6_months)};
+                             padding: 10px; border-radius: 6px; color: white;">
+                            <div>6 Months</div>
+                            <div style="font-size: 24px; font-weight: bold;">Grade {pred.predicted_grade_6_months}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with prog_col3:
+                        st.markdown(f"""
+                        <div style="text-align: center; background: {get_grade_color(pred.predicted_grade_12_months)};
+                             padding: 10px; border-radius: 6px; color: white;">
+                            <div>12 Months</div>
+                            <div style="font-size: 24px; font-weight: bold;">Grade {pred.predicted_grade_12_months}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # Risk Level Explanation
+                    risk_score = pred.failure_risk_score
+                    if risk_score >= 80:
+                        risk_level = "CRITICAL"
+                        risk_explanation = "Immediate attention required. High probability of failure within the prediction window."
+                        risk_icon = "🔴"
+                    elif risk_score >= 60:
+                        risk_level = "HIGH"
+                        risk_explanation = "Significant risk. Schedule repair as soon as possible to prevent emergency failure."
+                        risk_icon = "🟠"
+                    elif risk_score >= 40:
+                        risk_level = "MODERATE"
+                        risk_explanation = "Notable concern. Plan for repair within the next budget cycle."
+                        risk_icon = "🟡"
+                    else:
+                        risk_level = "LOW"
+                        risk_explanation = "Acceptable condition. Continue routine monitoring."
+                        risk_icon = "🟢"
+
                     st.markdown(f"""
                     <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                        <div style="font-size: 14px; color: #94a3b8;">Estimated Time to Failure</div>
-                        <div style="font-size: 28px; font-weight: bold; color: #e2e8f0;">
-                            {pred.estimated_time_to_failure_months} months
-                            <span style="font-size: 14px; color: #64748b;">({pred.confidence_interval})</span>
+                        <div style="font-size: 16px; color: {get_risk_color(risk_score)};">
+                            {risk_icon} <strong>Risk Level: {risk_level}</strong>
+                        </div>
+                        <div style="color: #94a3b8; margin-top: 5px;">
+                            {risk_explanation}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
 
-                # Contributing factors with better styling
-                if pred.contributing_factors:
-                    st.markdown("**Contributing Factors:**")
-                    factors_html = ""
-                    for i, factor in enumerate(pred.contributing_factors, 1):
-                        factors_html += f"""
-                        <div style="background: #1e293b; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid #3b82f6;">
-                            <span style="color: #60a5fa; font-weight: bold;">{i}.</span>
-                            <span style="color: #e2e8f0;">{factor}</span>
+                    # Time to Failure with Confidence
+                    if pred.estimated_time_to_failure_months:
+                        st.markdown(f"""
+                        <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                            <div style="font-size: 14px; color: #94a3b8;">Estimated Time to Failure</div>
+                            <div style="font-size: 28px; font-weight: bold; color: #e2e8f0;">
+                                {pred.estimated_time_to_failure_months} months
+                                <span style="font-size: 14px; color: #64748b;">({pred.confidence_interval})</span>
+                            </div>
                         </div>
-                        """
-                    st.markdown(factors_html, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
 
-                # Recommendation
-                st.info(f"**Recommendation:** {pred.recommended_action}")
+                    # Contributing factors with better styling
+                    if pred.contributing_factors:
+                        st.markdown("**Contributing Factors:**")
+                        factors_html = ""
+                        for i, factor in enumerate(pred.contributing_factors, 1):
+                            factors_html += f"""
+                            <div style="background: #1e293b; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid #3b82f6;">
+                                <span style="color: #60a5fa; font-weight: bold;">{i}.</span>
+                                <span style="color: #e2e8f0;">{factor}</span>
+                            </div>
+                            """
+                        st.markdown(factors_html, unsafe_allow_html=True)
 
-                # Cost Analysis
-                st.subheader("Cost-Benefit Analysis")
-                col1, col2 = st.columns(2)
+                    # Recommendation
+                    st.info(f"**Recommendation:** {pred.recommended_action}")
 
-                with col1:
-                    st.markdown(f"""
-                    <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border-left: 4px solid #22c55e;">
-                        <div style="color: #94a3b8; font-size: 14px;">Proactive Repair Cost</div>
-                        <div style="color: #22c55e; font-size: 32px; font-weight: bold;">
-                            ${pred.cost_estimate_repair:,.0f}
+                # Cost Analysis Section - Collapsible
+                cost_summary = f"💰 Cost-Benefit Analysis - Repair: ${pred.cost_estimate_repair:,.0f} vs Emergency: ${pred.cost_estimate_emergency:,.0f}"
+                with st.expander(cost_summary, expanded=True):
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown(f"""
+                        <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border-left: 4px solid #22c55e;">
+                            <div style="color: #94a3b8; font-size: 14px;">Proactive Repair Cost</div>
+                            <div style="color: #22c55e; font-size: 32px; font-weight: bold;">
+                                ${pred.cost_estimate_repair:,.0f}
+                            </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
 
-                with col2:
-                    st.markdown(f"""
-                    <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border-left: 4px solid #ef4444;">
-                        <div style="color: #94a3b8; font-size: 14px;">Emergency Failure Cost</div>
-                        <div style="color: #ef4444; font-size: 32px; font-weight: bold;">
-                            ${pred.cost_estimate_emergency:,.0f}
+                    with col2:
+                        st.markdown(f"""
+                        <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                            <div style="color: #94a3b8; font-size: 14px;">Emergency Failure Cost</div>
+                            <div style="color: #ef4444; font-size: 32px; font-weight: bold;">
+                                ${pred.cost_estimate_emergency:,.0f}
+                            </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
 
-                savings = pred.cost_estimate_emergency - pred.cost_estimate_repair
-                if savings > 0:
-                    savings_pct = (savings / pred.cost_estimate_emergency) * 100
-                    st.success(f"💰 Proactive repair saves **${savings:,.0f}** ({savings_pct:.0f}% savings)")
+                    savings = pred.cost_estimate_emergency - pred.cost_estimate_repair
+                    if savings > 0:
+                        savings_pct = (savings / pred.cost_estimate_emergency) * 100
+                        st.success(f"💰 Proactive repair saves **${savings:,.0f}** ({savings_pct:.0f}% savings)")
 
-                # Detailed Reasoning with better formatting
+                    # Itemized Repair Breakdown
+                    if hasattr(pred, 'repair_items') and pred.repair_items:
+                        st.markdown("---")
+                        st.markdown("#### 🔧 Itemized Repair Breakdown")
+                        st.markdown("Each detected issue requires specific repairs:")
+
+                        # Priority color mapping
+                        priority_colors = {
+                            "immediate": "#ef4444",
+                            "short-term": "#f97316",
+                            "medium-term": "#eab308",
+                            "long-term": "#22c55e"
+                        }
+                        priority_labels = {
+                            "immediate": "🔴 IMMEDIATE",
+                            "short-term": "🟠 SHORT-TERM",
+                            "medium-term": "🟡 MEDIUM-TERM",
+                            "long-term": "🟢 LONG-TERM"
+                        }
+
+                        total_itemized = 0
+                        for item in pred.repair_items:
+                            color = priority_colors.get(item.priority, "#6b7280")
+                            priority_label = priority_labels.get(item.priority, item.priority.upper())
+                            total_itemized += item.estimated_cost
+
+                            st.markdown(f"""
+                            <div style="background: #1e293b; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid {color};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <div>
+                                        <span style="color: {color}; font-weight: bold; font-size: 12px;">{priority_label}</span>
+                                        <span style="color: #94a3b8; font-size: 12px; margin-left: 10px;">{item.defect_code}</span>
+                                    </div>
+                                    <div style="color: #22c55e; font-weight: bold; font-size: 18px;">
+                                        ${item.estimated_cost:,.0f}
+                                    </div>
+                                </div>
+                                <div style="color: #e2e8f0; font-weight: 600; margin-bottom: 5px;">
+                                    {item.defect_description}
+                                </div>
+                                <div style="color: #60a5fa; font-size: 14px; margin-bottom: 5px;">
+                                    <strong>Repair Method:</strong> {item.repair_method}
+                                </div>
+                                <div style="color: #94a3b8; font-size: 13px; font-style: italic;">
+                                    {item.notes}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # Total summary
+                        st.markdown(f"""
+                        <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 2px solid #22c55e;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="color: #e2e8f0; font-weight: bold; font-size: 16px;">
+                                    Total Estimated Repair Cost ({len(pred.repair_items)} items)
+                                </div>
+                                <div style="color: #22c55e; font-weight: bold; font-size: 24px;">
+                                    ${total_itemized:,.0f}
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # Detailed Reasoning - Collapsible (already was)
                 if pred.reasoning:
-                    with st.expander("📋 View Detailed AI Reasoning", expanded=False):
+                    with st.expander("📋 AI Reasoning & Analysis Details", expanded=False):
                         # Split reasoning into paragraphs for better readability
                         reasoning_text = pred.reasoning.strip()
                         paragraphs = reasoning_text.split('\n\n')

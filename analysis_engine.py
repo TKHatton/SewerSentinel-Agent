@@ -141,6 +141,17 @@ class DetectedDefect:
 
 
 @dataclass
+class RepairItem:
+    """Represents an individual repair item with cost estimate"""
+    defect_code: str
+    defect_description: str
+    repair_method: str
+    estimated_cost: float
+    priority: str  # "immediate", "short-term", "long-term"
+    notes: str = ""
+
+
+@dataclass
 class PredictionResult:
     """Represents a failure prediction for a pipe segment"""
     pipe_id: str
@@ -156,6 +167,7 @@ class PredictionResult:
     cost_estimate_emergency: float
     confidence_interval: str
     reasoning: str
+    repair_items: List[RepairItem] = field(default_factory=list)  # Itemized repair breakdown
 
 
 @dataclass
@@ -302,6 +314,286 @@ def calculate_risk_score(
     return round(grade_component + time_component + location_component, 1)
 
 
+# Repair methods and base costs per defect type
+DEFECT_REPAIR_INFO = {
+    "CL": {
+        "name": "Longitudinal Crack",
+        "methods": {
+            1: ("Epoxy injection sealing", 800),
+            2: ("Epoxy injection sealing", 1200),
+            3: ("CIPP spot repair liner", 3500),
+            4: ("CIPP full liner or pipe bursting", 8000),
+            5: ("Emergency pipe replacement", 15000),
+        },
+        "notes": "Longitudinal cracks often indicate ground movement or loading stress"
+    },
+    "CC": {
+        "name": "Circumferential Crack",
+        "methods": {
+            1: ("Crack sealing", 600),
+            2: ("Epoxy injection", 1000),
+            3: ("CIPP spot repair", 3000),
+            4: ("CIPP liner section", 7500),
+            5: ("Pipe segment replacement", 14000),
+        },
+        "notes": "Circumferential cracks may indicate joint stress or differential settlement"
+    },
+    "CM": {
+        "name": "Multiple Cracks",
+        "methods": {
+            1: ("Multiple crack sealing", 1500),
+            2: ("Epoxy treatment program", 2500),
+            3: ("CIPP liner recommended", 5000),
+            4: ("Full CIPP rehabilitation", 10000),
+            5: ("Pipe replacement required", 18000),
+        },
+        "notes": "Multiple cracks indicate widespread structural degradation"
+    },
+    "FC": {
+        "name": "Fracture",
+        "methods": {
+            1: ("Monitor and seal", 1000),
+            2: ("Structural grout injection", 2000),
+            3: ("CIPP spot repair", 4500),
+            4: ("Pipe segment liner", 9000),
+            5: ("Emergency replacement", 16000),
+        },
+        "notes": "Fractures compromise structural integrity and require prompt attention"
+    },
+    "B": {
+        "name": "Broken Pipe",
+        "methods": {
+            3: ("Point repair excavation", 6000),
+            4: ("Segment replacement", 12000),
+            5: ("Emergency dig and replace", 20000),
+        },
+        "notes": "Broken sections require physical repair or replacement"
+    },
+    "H": {
+        "name": "Hole",
+        "methods": {
+            2: ("Patch repair", 1500),
+            3: ("Point repair with liner", 4000),
+            4: ("Segment replacement", 10000),
+            5: ("Emergency repair", 18000),
+        },
+        "notes": "Holes allow infiltration and exfiltration - repair promptly"
+    },
+    "D": {
+        "name": "Deformed Pipe",
+        "methods": {
+            2: ("Monitor deformation", 500),
+            3: ("Re-rounding or liner", 5000),
+            4: ("Pipe bursting replacement", 12000),
+            5: ("Full excavation replacement", 22000),
+        },
+        "notes": "Deformation reduces flow capacity and may worsen under load"
+    },
+    "X": {
+        "name": "Collapse",
+        "methods": {
+            5: ("Emergency excavation and replacement", 35000),
+        },
+        "notes": "Collapsed sections require immediate emergency response"
+    },
+    "RF": {
+        "name": "Root Intrusion (Fine)",
+        "methods": {
+            1: ("Chemical root treatment", 400),
+            2: ("Mechanical root cutting", 800),
+            3: ("Root cutting + chemical treatment", 1500),
+        },
+        "notes": "Fine roots indicate early intrusion - treat to prevent growth"
+    },
+    "RM": {
+        "name": "Root Intrusion (Medium)",
+        "methods": {
+            2: ("Mechanical root cutting", 1200),
+            3: ("Root cutting + joint sealing", 2500),
+            4: ("Root removal + CIPP liner", 6000),
+        },
+        "notes": "Medium roots are actively growing - seal entry points after removal"
+    },
+    "RB": {
+        "name": "Root Ball",
+        "methods": {
+            3: ("Hydro-jetting + chemical treatment", 3000),
+            4: ("Root removal + structural repair", 8000),
+            5: ("Excavation and pipe replacement", 15000),
+        },
+        "notes": "Root balls cause severe blockage and structural damage"
+    },
+    "DAG": {
+        "name": "Deposits - Grease",
+        "methods": {
+            1: ("High-pressure jetting", 600),
+            2: ("Jetting + degreasing treatment", 1200),
+            3: ("Industrial cleaning + inspection", 2500),
+        },
+        "notes": "Grease deposits require regular maintenance to prevent buildup"
+    },
+    "DS": {
+        "name": "Deposits - Settled",
+        "methods": {
+            1: ("Flushing", 400),
+            2: ("Vacuum/jetting cleaning", 900),
+            3: ("Heavy debris removal", 2000),
+        },
+        "notes": "Settled deposits reduce flow capacity - identify source"
+    },
+    "I": {
+        "name": "Infiltration",
+        "methods": {
+            1: ("Joint sealing", 800),
+            2: ("Chemical grouting", 1800),
+            3: ("Internal joint sealing + grouting", 3500),
+            4: ("CIPP liner to stop infiltration", 7000),
+            5: ("Pipe replacement in high water table", 16000),
+        },
+        "notes": "Infiltration indicates compromised pipe integrity and adds to treatment load"
+    },
+    "JD": {
+        "name": "Joint Displaced",
+        "methods": {
+            1: ("Monitor joint", 300),
+            2: ("Internal joint seal", 1500),
+            3: ("Joint repair grouting", 3000),
+            4: ("Joint reconstruction", 6000),
+        },
+        "notes": "Displaced joints allow infiltration and root entry"
+    },
+    "JS": {
+        "name": "Joint Separated",
+        "methods": {
+            2: ("Internal joint sealing", 2000),
+            3: ("Grouting + sealing", 4000),
+            4: ("Joint reconstruction or liner", 8000),
+            5: ("Excavation and re-joining", 14000),
+        },
+        "notes": "Separated joints are high-risk for failure progression"
+    },
+    "SD": {
+        "name": "Surface Damage",
+        "methods": {
+            1: ("Protective coating", 500),
+            2: ("Epoxy coating application", 1200),
+            3: ("Surface rehabilitation", 3000),
+            4: ("Liner installation", 7000),
+        },
+        "notes": "Surface damage exposes pipe material to further corrosion"
+    },
+    "COR": {
+        "name": "Corrosion",
+        "methods": {
+            1: ("Protective coating", 600),
+            2: ("Corrosion inhibitor + coating", 1500),
+            3: ("Epoxy lining", 4000),
+            4: ("CIPP rehabilitation", 9000),
+            5: ("Pipe replacement", 17000),
+        },
+        "notes": "Corrosion is progressive - early treatment prevents wall loss"
+    },
+    "OK": {
+        "name": "Normal - No Defects",
+        "methods": {
+            1: ("Routine inspection only", 0),
+        },
+        "notes": "No defects detected - continue scheduled maintenance"
+    },
+}
+
+
+def calculate_repair_items(
+    defects: List[Dict],
+    diameter_inches: int,
+    pipe_material: str,
+    depth_feet: float
+) -> List[RepairItem]:
+    """
+    Calculate itemized repair costs for each defect.
+
+    Args:
+        defects: List of detected defects with defect_code and grade
+        diameter_inches: Pipe diameter for cost scaling
+        pipe_material: Pipe material for cost adjustment
+        depth_feet: Burial depth for excavation cost adjustment
+
+    Returns:
+        List of RepairItem objects with individual cost estimates
+    """
+    repair_items = []
+
+    # Material cost multipliers
+    material_multipliers = {
+        "concrete": 1.0,
+        "clay": 1.15,
+        "cast_iron": 1.4,
+        "pvc": 0.85,
+        "hdpe": 0.8,
+        "unknown": 1.0
+    }
+    material_mult = material_multipliers.get(pipe_material.lower(), 1.0)
+
+    # Diameter scaling (larger pipes cost more)
+    diameter_mult = 1.0 + (max(0, diameter_inches - 12) * 0.03)
+
+    # Depth multiplier for excavation work
+    depth_mult = 1.0 + (max(0, depth_feet - 8) * 0.04)
+
+    for defect in defects:
+        code = defect.get("defect_code", "OK")
+        grade = defect.get("grade", 1)
+        defect_type = defect.get("defect_type", "Unknown")
+
+        # Get repair info for this defect type
+        repair_info = DEFECT_REPAIR_INFO.get(code, DEFECT_REPAIR_INFO.get("OK"))
+
+        if repair_info:
+            # Find the appropriate repair method for this grade
+            methods = repair_info["methods"]
+
+            # Find closest grade (some defects don't have all grades)
+            available_grades = sorted(methods.keys())
+            selected_grade = grade
+            if grade not in available_grades:
+                # Find nearest available grade
+                selected_grade = min(available_grades, key=lambda x: abs(x - grade))
+
+            method, base_cost = methods.get(selected_grade, methods.get(available_grades[-1]))
+
+            # Apply multipliers
+            adjusted_cost = base_cost * material_mult * diameter_mult
+
+            # Apply depth multiplier only for methods that require excavation
+            if "excavation" in method.lower() or "replacement" in method.lower() or "dig" in method.lower():
+                adjusted_cost *= depth_mult
+
+            # Determine priority based on grade
+            if grade >= 5:
+                priority = "immediate"
+            elif grade >= 4:
+                priority = "short-term"
+            elif grade >= 3:
+                priority = "medium-term"
+            else:
+                priority = "long-term"
+
+            repair_items.append(RepairItem(
+                defect_code=code,
+                defect_description=f"{repair_info['name']} (Grade {grade})",
+                repair_method=method,
+                estimated_cost=round(adjusted_cost, 2),
+                priority=priority,
+                notes=repair_info.get("notes", "")
+            ))
+
+    # Sort by priority (immediate first)
+    priority_order = {"immediate": 0, "short-term": 1, "medium-term": 2, "long-term": 3}
+    repair_items.sort(key=lambda x: priority_order.get(x.priority, 4))
+
+    return repair_items
+
+
 class SewerSentinelEngine:
     """
     Main analysis engine using Gemini 3 for pipe inspection analysis.
@@ -435,16 +727,21 @@ IMPORTANT: Always provide numeric values for all fields. Never return 0 for cost
     ) -> str:
         """
         Call Gemini API with retry logic.
-        Note: thinking_config removed due to compatibility issues with gemini-3-flash-preview
+        Uses temperature=0 for deterministic, reproducible outputs.
         """
         last_error = None
 
         for attempt in range(max_retries):
             try:
-                # Simple API call without any config
+                # API call with temperature=0 for consistent, deterministic results
                 response = self.client.models.generate_content(
                     model=self.model_name,
-                    contents=contents
+                    contents=contents,
+                    config={
+                        "temperature": 0,  # Deterministic output - same input = same output
+                        "top_p": 1,        # No nucleus sampling
+                        "top_k": 1         # Always pick the most likely token
+                    }
                 )
 
                 if response and response.text:
@@ -691,22 +988,29 @@ Current Overall Grade: {current_grade}
             response_text = self._call_gemini_with_retry(contents, use_thinking=False)
             prediction_data = _parse_json_response(response_text)
 
-            # Get values, using fallbacks for any zeros/nulls
-            final_grade = prediction_data.get("current_grade") or current_grade
-            final_time = prediction_data.get("estimated_time_to_failure_months")
-            final_risk = prediction_data.get("failure_risk_score")
-            final_repair = prediction_data.get("cost_estimate_repair")
-            final_emergency = prediction_data.get("cost_estimate_emergency")
-            
-            # Apply fallbacks
-            if not final_time or final_time <= 0:
-                final_time = fallback_time
-            if not final_risk or final_risk <= 0:
-                final_risk = fallback_risk
-            if not final_repair or final_repair <= 0:
-                final_repair = fallback_repair
-            if not final_emergency or final_emergency <= 0:
-                final_emergency = fallback_emergency
+            # Helper function to safely extract numeric values
+            def safe_numeric(value, fallback, min_value=0):
+                """Extract numeric value, using fallback if invalid or below minimum."""
+                if value is None:
+                    return fallback
+                try:
+                    num = float(value)
+                    if num <= min_value:
+                        return fallback
+                    return num
+                except (TypeError, ValueError):
+                    return fallback
+
+            # Get values, using fallbacks for any invalid/zero values
+            final_grade = int(safe_numeric(prediction_data.get("current_grade"), current_grade, min_value=0))
+            final_time = int(safe_numeric(prediction_data.get("estimated_time_to_failure_months"), fallback_time, min_value=0))
+            final_risk = safe_numeric(prediction_data.get("failure_risk_score"), fallback_risk, min_value=0)
+            final_repair = safe_numeric(prediction_data.get("cost_estimate_repair"), fallback_repair, min_value=0)
+            final_emergency = safe_numeric(prediction_data.get("cost_estimate_emergency"), fallback_emergency, min_value=0)
+
+            # Log if fallbacks were used (for debugging)
+            if final_time == fallback_time or final_risk == fallback_risk or final_repair == fallback_repair:
+                logger.info(f"Using fallback values for {pipe_id}: time={final_time}, risk={final_risk}, repair=${final_repair}")
 
             factors = prediction_data.get("contributing_factors", [])
             if not factors:
@@ -716,11 +1020,33 @@ Current Overall Grade: {current_grade}
             if not recommendation:
                 recommendation = self._get_fallback_recommendation(current_grade)
 
+            # Calculate fallback grade predictions
+            fallback_grade_6mo = min(current_grade + (1 if current_grade < 5 else 0), 5)
+            fallback_grade_12mo = min(current_grade + (1 if current_grade < 4 else 0), 5)
+
+            predicted_6mo = int(safe_numeric(prediction_data.get("predicted_grade_6_months"), fallback_grade_6mo, min_value=0))
+            predicted_12mo = int(safe_numeric(prediction_data.get("predicted_grade_12_months"), fallback_grade_12mo, min_value=0))
+
+            # Ensure grades are within valid range (1-5)
+            predicted_6mo = max(1, min(5, predicted_6mo))
+            predicted_12mo = max(1, min(5, predicted_12mo))
+
+            # Calculate itemized repair costs for each defect
+            repair_items = calculate_repair_items(defects, diameter, material, depth)
+
+            # Update total repair cost to sum of itemized repairs if we have items
+            if repair_items:
+                itemized_total = sum(item.estimated_cost for item in repair_items)
+                if itemized_total > 0:
+                    final_repair = itemized_total
+                    # Recalculate emergency cost based on new repair total
+                    final_emergency = calculate_emergency_cost(final_repair, location_type, traffic_load)
+
             return PredictionResult(
                 pipe_id=pipe_id,
                 current_grade=final_grade,
-                predicted_grade_6_months=prediction_data.get("predicted_grade_6_months") or min(current_grade + (1 if current_grade < 5 else 0), 5),
-                predicted_grade_12_months=prediction_data.get("predicted_grade_12_months") or min(current_grade + (1 if current_grade < 4 else 0), 5),
+                predicted_grade_6_months=predicted_6mo,
+                predicted_grade_12_months=predicted_12mo,
                 estimated_time_to_failure_months=final_time,
                 failure_risk_score=final_risk,
                 contributing_factors=factors,
@@ -729,12 +1055,23 @@ Current Overall Grade: {current_grade}
                 cost_estimate_repair=final_repair,
                 cost_estimate_emergency=final_emergency,
                 confidence_interval=prediction_data.get("confidence_interval", "±6 months"),
-                reasoning=prediction_data.get("reasoning", f"Analysis based on {len(defects)} detected defects in a {pipe_age}-year-old {material} pipe.")
+                reasoning=prediction_data.get("reasoning", f"Analysis based on {len(defects)} detected defects in a {pipe_age}-year-old {material} pipe."),
+                repair_items=repair_items
             )
 
         except Exception as e:
             logger.error(f"Prediction API failed for {pipe_id}: {e}")
-            
+
+            # Calculate itemized repair costs for fallback
+            fallback_repair_items = calculate_repair_items(defects, diameter, material, depth)
+
+            # Update fallback costs based on itemized repairs
+            if fallback_repair_items:
+                itemized_total = sum(item.estimated_cost for item in fallback_repair_items)
+                if itemized_total > 0:
+                    fallback_repair = itemized_total
+                    fallback_emergency = calculate_emergency_cost(fallback_repair, location_type, traffic_load)
+
             # Return fully-calculated fallback result
             return PredictionResult(
                 pipe_id=pipe_id,
@@ -749,7 +1086,8 @@ Current Overall Grade: {current_grade}
                 cost_estimate_repair=fallback_repair,
                 cost_estimate_emergency=fallback_emergency,
                 confidence_interval="±12 months (estimated)",
-                reasoning=f"Prediction calculated using engineering formulas for Grade {current_grade} defects in {pipe_age}-year-old {material} pipe."
+                reasoning=f"Prediction calculated using engineering formulas for Grade {current_grade} defects in {pipe_age}-year-old {material} pipe.",
+                repair_items=fallback_repair_items
             )
 
     def prioritize_repairs(
