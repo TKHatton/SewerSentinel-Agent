@@ -57,79 +57,221 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for dark theme
-st.markdown("""
-<style>
-    /* Dark theme overrides */
-    .stApp {
-        background-color: #0a0a0f;
-    }
+# Initialize theme in session state
+if 'theme' not in st.session_state:
+    st.session_state['theme'] = 'dark'
 
-    .main-header {
-        background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        border: 1px solid #2d3748;
-    }
+def get_theme_css(theme: str) -> str:
+    """Generate CSS based on selected theme."""
+    if theme == 'light':
+        return """
+        <style>
+            /* Light theme */
+            .stApp {
+                background-color: #f8fafc;
+            }
 
-    .stat-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        padding: 20px;
-        border-radius: 8px;
-        border: 1px solid #2d3748;
-        text-align: center;
-    }
+            .main-header {
+                background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 100%);
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                border: 1px solid #cbd5e1;
+            }
 
-    .defect-card {
-        background: #1a1a2e;
-        padding: 15px;
-        border-radius: 6px;
-        margin: 10px 0;
-        border-left: 4px solid #f97316;
-    }
+            .main-header h1 {
+                color: #1e293b !important;
+            }
 
-    .grade-badge {
-        display: inline-block;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 18px;
-    }
+            .main-header p {
+                color: #475569 !important;
+            }
 
-    .grade-1 { background-color: #22c55e; color: white; }
-    .grade-2 { background-color: #84cc16; color: white; }
-    .grade-3 { background-color: #eab308; color: white; }
-    .grade-4 { background-color: #f97316; color: white; }
-    .grade-5 { background-color: #ef4444; color: white; }
+            .stat-card {
+                background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                text-align: center;
+            }
 
-    .risk-high { color: #ef4444; }
-    .risk-medium { color: #f97316; }
-    .risk-low { color: #22c55e; }
+            .defect-card {
+                background: #ffffff;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 10px 0;
+                border-left: 4px solid #f97316;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
 
-    .prediction-box {
-        background: #0f172a;
-        padding: 20px;
-        border-radius: 8px;
-        border: 1px solid #2d3748;
-    }
+            .grade-badge {
+                display: inline-block;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 18px;
+            }
 
-    .cost-comparison {
-        display: flex;
-        gap: 20px;
-    }
+            .grade-1 { background-color: #22c55e; color: white; }
+            .grade-2 { background-color: #84cc16; color: white; }
+            .grade-3 { background-color: #eab308; color: white; }
+            .grade-4 { background-color: #f97316; color: white; }
+            .grade-5 { background-color: #ef4444; color: white; }
 
-    .cost-box {
-        flex: 1;
-        padding: 15px;
-        border-radius: 8px;
-        background: #1a1a2e;
-    }
+            .risk-high { color: #dc2626; }
+            .risk-medium { color: #ea580c; }
+            .risk-low { color: #16a34a; }
 
-    .cost-repair { border-left: 4px solid #22c55e; }
-    .cost-emergency { border-left: 4px solid #ef4444; }
-</style>
-""", unsafe_allow_html=True)
+            .prediction-box {
+                background: #ffffff;
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            .cost-comparison {
+                display: flex;
+                gap: 20px;
+            }
+
+            .cost-box {
+                flex: 1;
+                padding: 15px;
+                border-radius: 8px;
+                background: #ffffff;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            .cost-repair { border-left: 4px solid #22c55e; }
+            .cost-emergency { border-left: 4px solid #ef4444; }
+
+            /* Light theme text colors for custom HTML */
+            [data-theme="light"] {
+                --text-primary: #1e293b;
+                --text-secondary: #475569;
+                --text-muted: #64748b;
+                --bg-card: #ffffff;
+                --bg-card-alt: #f1f5f9;
+                --border-color: #e2e8f0;
+            }
+        </style>
+        """
+    else:
+        return """
+        <style>
+            /* Dark theme */
+            .stApp {
+                background-color: #0a0a0f;
+            }
+
+            .main-header {
+                background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+                border: 1px solid #2d3748;
+            }
+
+            .stat-card {
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #2d3748;
+                text-align: center;
+            }
+
+            .defect-card {
+                background: #1a1a2e;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 10px 0;
+                border-left: 4px solid #f97316;
+            }
+
+            .grade-badge {
+                display: inline-block;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 18px;
+            }
+
+            .grade-1 { background-color: #22c55e; color: white; }
+            .grade-2 { background-color: #84cc16; color: white; }
+            .grade-3 { background-color: #eab308; color: white; }
+            .grade-4 { background-color: #f97316; color: white; }
+            .grade-5 { background-color: #ef4444; color: white; }
+
+            .risk-high { color: #ef4444; }
+            .risk-medium { color: #f97316; }
+            .risk-low { color: #22c55e; }
+
+            .prediction-box {
+                background: #0f172a;
+                padding: 20px;
+                border-radius: 8px;
+                border: 1px solid #2d3748;
+            }
+
+            .cost-comparison {
+                display: flex;
+                gap: 20px;
+            }
+
+            .cost-box {
+                flex: 1;
+                padding: 15px;
+                border-radius: 8px;
+                background: #1a1a2e;
+            }
+
+            .cost-repair { border-left: 4px solid #22c55e; }
+            .cost-emergency { border-left: 4px solid #ef4444; }
+
+            /* Dark theme text colors for custom HTML */
+            [data-theme="dark"] {
+                --text-primary: #e2e8f0;
+                --text-secondary: #94a3b8;
+                --text-muted: #64748b;
+                --bg-card: #1a1a2e;
+                --bg-card-alt: #0f172a;
+                --border-color: #2d3748;
+            }
+        </style>
+        """
+
+# Apply theme CSS
+st.markdown(get_theme_css(st.session_state.get('theme', 'dark')), unsafe_allow_html=True)
+
+
+def get_theme_colors() -> dict:
+    """Get color palette based on current theme."""
+    theme = st.session_state.get('theme', 'dark')
+    if theme == 'light':
+        return {
+            'bg_primary': '#ffffff',
+            'bg_secondary': '#f1f5f9',
+            'bg_card': '#ffffff',
+            'bg_card_alt': '#f8fafc',
+            'text_primary': '#1e293b',
+            'text_secondary': '#475569',
+            'text_muted': '#64748b',
+            'border': '#e2e8f0',
+            'accent': '#3b82f6',
+        }
+    else:
+        return {
+            'bg_primary': '#0a0a0f',
+            'bg_secondary': '#0f172a',
+            'bg_card': '#1e293b',
+            'bg_card_alt': '#1a1a2e',
+            'text_primary': '#e2e8f0',
+            'text_secondary': '#94a3b8',
+            'text_muted': '#64748b',
+            'border': '#2d3748',
+            'accent': '#60a5fa',
+        }
 
 
 def get_grade_color(grade: int) -> str:
@@ -335,14 +477,19 @@ Cost analysis: Proactive CIPP rehabilitation ($15,000) vs emergency dig-and-repl
 
 
 def main():
-    # Header
-    st.markdown("""
+    # Header with theme-aware colors
+    theme = st.session_state.get('theme', 'dark')
+    header_title_color = "#1e293b" if theme == 'light' else "#e2e8f0"
+    header_subtitle_color = "#475569" if theme == 'light' else "#94a3b8"
+    header_muted_color = "#64748b" if theme == 'light' else "#64748b"
+
+    st.markdown(f"""
     <div class="main-header">
-        <h1 style="margin: 0; color: #e2e8f0;">🔍 SewerSentinel</h1>
-        <p style="margin: 5px 0 0 0; color: #94a3b8;">
+        <h1 style="margin: 0; color: {header_title_color};">🔍 SewerSentinel</h1>
+        <p style="margin: 5px 0 0 0; color: {header_subtitle_color};">
             Autonomous Underground Infrastructure Predictive Failure System
         </p>
-        <p style="margin: 5px 0 0 0; color: #64748b; font-size: 12px;">
+        <p style="margin: 5px 0 0 0; color: {header_muted_color}; font-size: 12px;">
             Powered by Google Gemini 3 | PACP Compliant
         </p>
     </div>
@@ -389,11 +536,23 @@ def main():
 
     # Minimal sidebar - just branding
     with st.sidebar:
-        st.markdown("""
+        # Theme toggle at the top
+        theme_col1, theme_col2 = st.columns([3, 1])
+        with theme_col2:
+            if st.button("🌙" if st.session_state.get('theme') == 'light' else "☀️", help="Toggle light/dark mode"):
+                st.session_state['theme'] = 'dark' if st.session_state.get('theme') == 'light' else 'light'
+                st.rerun()
+
+        # Branding with theme-aware colors
+        theme = st.session_state.get('theme', 'dark')
+        title_color = "#1e293b" if theme == 'light' else "#e2e8f0"
+        subtitle_color = "#475569" if theme == 'light' else "#64748b"
+
+        st.markdown(f"""
         <div style="text-align: center; padding: 20px 0;">
             <div style="font-size: 48px;">🔍</div>
-            <h2 style="margin: 10px 0 5px 0; color: #e2e8f0;">SewerSentinel</h2>
-            <p style="color: #64748b; font-size: 12px; margin: 0;">
+            <h2 style="margin: 10px 0 5px 0; color: {title_color};">SewerSentinel</h2>
+            <p style="color: {subtitle_color}; font-size: 12px; margin: 0;">
                 AI-Powered Pipe Analysis
             </p>
         </div>
