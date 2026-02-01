@@ -21,6 +21,9 @@ from google.genai import types
 # Import calibration module for PACP-compliant grading rubrics and few-shot examples
 from sewer_sentinel_calibration import get_calibrated_detection_prompt, EnsembleAnalyzer
 
+# Import cost estimation module for itemized repair costs
+from sewer_cost_estimation import CostEstimator, Region, get_quick_estimate
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -171,6 +174,8 @@ class PredictionResult:
     confidence_interval: str
     reasoning: str
     repair_items: List[RepairItem] = field(default_factory=list)  # Itemized repair breakdown
+    detailed_estimate: Optional[Any] = None  # Full CostEstimate object from sewer_cost_estimation
+    emergency_factors: List[str] = field(default_factory=list)  # Factors applied to emergency cost
 
 
 @dataclass
@@ -976,16 +981,59 @@ Current Overall Grade: {current_grade}
             predicted_6mo = max(1, min(5, predicted_6mo))
             predicted_12mo = max(1, min(5, predicted_12mo))
 
-            # Calculate itemized repair costs for each defect
-            repair_items = calculate_repair_items(defects, diameter, material, depth)
+            # Use CostEstimator for detailed, region-aware cost estimates
+            region_map = {
+                "midwest": Region.MIDWEST,
+                "northeast": Region.NORTHEAST,
+                "southeast": Region.SOUTHEAST,
+                "southwest": Region.SOUTHWEST,
+                "west_coast": Region.WEST_COAST,
+                "mountain": Region.MOUNTAIN
+            }
+            region_str = context.get('region', 'midwest').lower().replace(" ", "_")
+            region_enum = region_map.get(region_str, Region.MIDWEST)
 
-            # Update total repair cost to sum of itemized repairs if we have items
-            if repair_items:
-                itemized_total = sum(item.estimated_cost for item in repair_items)
-                if itemized_total > 0:
-                    final_repair = itemized_total
-                    # Recalculate emergency cost based on new repair total
-                    final_emergency = calculate_emergency_cost(final_repair, location_type, traffic_load)
+            estimator = CostEstimator(region=region_enum)
+            defect_codes = [d.get('defect_code', 'OK') for d in defects if d.get('defect_code')]
+
+            # Get segment length from context, default to 100 feet
+            segment_length = context.get('segment_length_feet', 100)
+
+            detailed_estimate = estimator.estimate_repair(
+                pipe_id=pipe_id,
+                diameter_inches=diameter,
+                length_feet=segment_length,
+                depth_feet=depth,
+                grade=current_grade,
+                defect_codes=defect_codes,
+                pipe_material=material,
+                location_type=location_type,
+                traffic_impact="residential_street"
+            )
+
+            # Calculate emergency cost with factors
+            emergency_cost, emergency_factors = estimator.estimate_emergency_cost(
+                detailed_estimate,
+                location_type=location_type,
+                response_urgency="immediate_24hr"
+            )
+
+            # Use detailed estimate costs
+            final_repair = detailed_estimate.grand_total
+            final_emergency = emergency_cost
+
+            # Convert CostLineItems to RepairItems for backward compatibility
+            repair_items = [
+                RepairItem(
+                    defect_code=item.category,
+                    defect_description=item.description,
+                    repair_method=item.category,
+                    estimated_cost=item.total,
+                    priority="short-term" if item.category not in ["Contingency", "Engineering"] else "long-term",
+                    notes=item.notes
+                )
+                for item in detailed_estimate.line_items
+            ]
 
             return PredictionResult(
                 pipe_id=pipe_id,
@@ -1001,21 +1049,68 @@ Current Overall Grade: {current_grade}
                 cost_estimate_emergency=final_emergency,
                 confidence_interval=prediction_data.get("confidence_interval", "±6 months"),
                 reasoning=prediction_data.get("reasoning", f"Analysis based on {len(defects)} detected defects in a {pipe_age}-year-old {material} pipe."),
-                repair_items=repair_items
+                repair_items=repair_items,
+                detailed_estimate=detailed_estimate,
+                emergency_factors=emergency_factors
             )
 
         except Exception as e:
             logger.error(f"Prediction API failed for {pipe_id}: {e}")
 
-            # Calculate itemized repair costs for fallback
-            fallback_repair_items = calculate_repair_items(defects, diameter, material, depth)
+            # Use CostEstimator for fallback cost calculation
+            try:
+                region_map = {
+                    "midwest": Region.MIDWEST,
+                    "northeast": Region.NORTHEAST,
+                    "southeast": Region.SOUTHEAST,
+                    "southwest": Region.SOUTHWEST,
+                    "west_coast": Region.WEST_COAST,
+                    "mountain": Region.MOUNTAIN
+                }
+                region_str = context.get('region', 'midwest').lower().replace(" ", "_")
+                region_enum = region_map.get(region_str, Region.MIDWEST)
 
-            # Update fallback costs based on itemized repairs
-            if fallback_repair_items:
-                itemized_total = sum(item.estimated_cost for item in fallback_repair_items)
-                if itemized_total > 0:
-                    fallback_repair = itemized_total
-                    fallback_emergency = calculate_emergency_cost(fallback_repair, location_type, traffic_load)
+                estimator = CostEstimator(region=region_enum)
+                defect_codes = [d.get('defect_code', 'OK') for d in defects if d.get('defect_code')]
+                segment_length = context.get('segment_length_feet', 100)
+
+                fallback_detailed_estimate = estimator.estimate_repair(
+                    pipe_id=pipe_id,
+                    diameter_inches=diameter,
+                    length_feet=segment_length,
+                    depth_feet=depth,
+                    grade=current_grade,
+                    defect_codes=defect_codes,
+                    pipe_material=material,
+                    location_type=location_type
+                )
+
+                fallback_emergency, fallback_emergency_factors = estimator.estimate_emergency_cost(
+                    fallback_detailed_estimate,
+                    location_type=location_type
+                )
+
+                fallback_repair = fallback_detailed_estimate.grand_total
+
+                fallback_repair_items = [
+                    RepairItem(
+                        defect_code=item.category,
+                        defect_description=item.description,
+                        repair_method=item.category,
+                        estimated_cost=item.total,
+                        priority="short-term" if item.category not in ["Contingency", "Engineering"] else "long-term",
+                        notes=item.notes
+                    )
+                    for item in fallback_detailed_estimate.line_items
+                ]
+            except Exception as cost_error:
+                logger.warning(f"CostEstimator fallback failed: {cost_error}, using simple calculation")
+                fallback_repair_items = calculate_repair_items(defects, diameter, material, depth)
+                if fallback_repair_items:
+                    fallback_repair = sum(item.estimated_cost for item in fallback_repair_items)
+                fallback_emergency = calculate_emergency_cost(fallback_repair, location_type, traffic_load)
+                fallback_detailed_estimate = None
+                fallback_emergency_factors = []
 
             # Return fully-calculated fallback result
             return PredictionResult(
@@ -1032,7 +1127,9 @@ Current Overall Grade: {current_grade}
                 cost_estimate_emergency=fallback_emergency,
                 confidence_interval="±12 months (estimated)",
                 reasoning=f"Prediction calculated using engineering formulas for Grade {current_grade} defects in {pipe_age}-year-old {material} pipe.",
-                repair_items=fallback_repair_items
+                repair_items=fallback_repair_items,
+                detailed_estimate=fallback_detailed_estimate if 'fallback_detailed_estimate' in dir() else None,
+                emergency_factors=fallback_emergency_factors if 'fallback_emergency_factors' in dir() else []
             )
 
     def prioritize_repairs(

@@ -415,6 +415,18 @@ def main():
 
         st.divider()
 
+        # Location Settings for cost estimation
+        st.subheader("Location Settings")
+        region = st.selectbox(
+            "Your Region",
+            ["Midwest", "Northeast", "Southeast", "Southwest", "West Coast", "Mountain"],
+            index=0,
+            help="Affects labor rates, permits, and material costs"
+        )
+        st.session_state['region'] = region.lower().replace(" ", "_")
+
+        st.divider()
+
         # Analysis Mode Selection
         st.subheader("Analysis Mode")
         use_ensemble = st.checkbox(
@@ -636,7 +648,9 @@ def main():
                                 "traffic_load": manual_ctx.get('traffic_load', 'medium'),
                                 "soil_type": manual_ctx.get('soil_type', 'clay'),
                                 "groundwater": manual_ctx.get('groundwater', 'medium'),
-                                "location_type": manual_ctx.get('location_type', 'residential')
+                                "location_type": manual_ctx.get('location_type', 'residential'),
+                                "region": st.session_state.get('region', 'midwest'),
+                                "segment_length_feet": 100  # Default segment length for cost estimation
                             }
 
                             # Check if ensemble mode is enabled
@@ -1158,68 +1172,77 @@ def main():
                         savings_pct = (savings / pred.cost_estimate_emergency) * 100
                         st.success(f"💰 Proactive repair saves **${savings:,.0f}** ({savings_pct:.0f}% savings)")
 
-                    # Itemized Repair Breakdown
-                    if hasattr(pred, 'repair_items') and pred.repair_items:
-                        st.markdown("---")
-                        st.markdown("#### 🔧 Itemized Repair Breakdown")
-                        st.markdown("Each detected issue requires specific repairs:")
+                    # Detailed Itemized Cost Breakdown (from CostEstimator)
+                    if hasattr(pred, 'detailed_estimate') and pred.detailed_estimate:
+                        estimate = pred.detailed_estimate
 
-                        # Priority color mapping
-                        priority_colors = {
-                            "immediate": "#ef4444",
-                            "short-term": "#f97316",
-                            "medium-term": "#eab308",
-                            "long-term": "#22c55e"
-                        }
-                        priority_labels = {
-                            "immediate": "🔴 IMMEDIATE",
-                            "short-term": "🟠 SHORT-TERM",
-                            "medium-term": "🟡 MEDIUM-TERM",
-                            "long-term": "🟢 LONG-TERM"
-                        }
+                        with st.expander("📋 Itemized Cost Breakdown", expanded=False):
+                            st.markdown(f"**Repair Method:** {estimate.repair_method}")
+                            st.markdown(f"**Region:** {estimate.region}")
+                            st.markdown("---")
 
-                        total_itemized = 0
-                        for item in pred.repair_items:
-                            color = priority_colors.get(item.priority, "#6b7280")
-                            priority_label = priority_labels.get(item.priority, item.priority.upper())
-                            total_itemized += item.estimated_cost
+                            # Group line items by category
+                            current_category = None
+                            for item in estimate.line_items:
+                                if item.category != current_category:
+                                    if current_category is not None:
+                                        st.markdown("---")
+                                    st.markdown(f"**{item.category.upper()}**")
+                                    current_category = item.category
 
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    st.write(f"{item.description}")
+                                    if item.notes:
+                                        st.caption(f"_{item.notes}_")
+                                with col2:
+                                    st.write(f"**${item.total:,.0f}**")
+
+                            # Summary totals
+                            st.markdown("---")
                             st.markdown(f"""
-                            <div style="background: #1e293b; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid {color};">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <div>
-                                        <span style="color: {color}; font-weight: bold; font-size: 12px;">{priority_label}</span>
-                                        <span style="color: #94a3b8; font-size: 12px; margin-left: 10px;">{item.defect_code}</span>
-                                    </div>
-                                    <div style="color: #22c55e; font-weight: bold; font-size: 18px;">
-                                        ${item.estimated_cost:,.0f}
-                                    </div>
+                            <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="color: #94a3b8;">Subtotal</span>
+                                    <span style="color: #e2e8f0;">${estimate.subtotal:,.0f}</span>
                                 </div>
-                                <div style="color: #e2e8f0; font-weight: 600; margin-bottom: 5px;">
-                                    {item.defect_description}
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="color: #94a3b8;">Contingency</span>
+                                    <span style="color: #e2e8f0;">${estimate.contingency:,.0f}</span>
                                 </div>
-                                <div style="color: #60a5fa; font-size: 14px; margin-bottom: 5px;">
-                                    <strong>Repair Method:</strong> {item.repair_method}
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <span style="color: #94a3b8;">Engineering</span>
+                                    <span style="color: #e2e8f0;">${estimate.engineering:,.0f}</span>
                                 </div>
-                                <div style="color: #94a3b8; font-size: 13px; font-style: italic;">
-                                    {item.notes}
+                                <div style="display: flex; justify-content: space-between; border-top: 1px solid #374151; padding-top: 10px;">
+                                    <span style="color: #22c55e; font-weight: bold; font-size: 18px;">Grand Total</span>
+                                    <span style="color: #22c55e; font-weight: bold; font-size: 18px;">${estimate.grand_total:,.0f}</span>
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)
 
-                        # Total summary
-                        st.markdown(f"""
-                        <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; border: 2px solid #22c55e;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div style="color: #e2e8f0; font-weight: bold; font-size: 16px;">
-                                    Total Estimated Repair Cost ({len(pred.repair_items)} items)
+                            # Assumptions
+                            st.markdown("**Assumptions:**")
+                            for a in estimate.assumptions[:5]:
+                                st.caption(f"• {a}")
+
+                            # Exclusions
+                            with st.expander("View Exclusions", expanded=False):
+                                for e in estimate.exclusions:
+                                    st.caption(f"• {e}")
+
+                    # Emergency Cost Factors
+                    if hasattr(pred, 'emergency_factors') and pred.emergency_factors:
+                        with st.expander("⚠️ Emergency Cost Factors", expanded=False):
+                            st.markdown("**Why emergency repairs cost more:**")
+                            for factor in pred.emergency_factors:
+                                st.markdown(f"""
+                                <div style="background: #1e293b; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid #ef4444;">
+                                    <span style="color: #e2e8f0;">{factor}</span>
                                 </div>
-                                <div style="color: #22c55e; font-weight: bold; font-size: 24px;">
-                                    ${total_itemized:,.0f}
-                                </div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                                """, unsafe_allow_html=True)
+
+                            st.caption("Emergency costs include overtime labor, expedited materials, environmental response, and service interruption penalties.")
 
                 # Detailed Reasoning - Collapsible (already was)
                 if pred.reasoning:
