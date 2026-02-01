@@ -461,6 +461,8 @@ def main():
 
         if use_ensemble:
             st.info("High-Confidence Mode: Analysis will run 3 passes for better accuracy")
+        else:
+            st.caption("💡 For critical decisions, enable High-Confidence Mode for more reliable results")
 
         # Store in session state for use during analysis
         st.session_state['use_ensemble'] = use_ensemble
