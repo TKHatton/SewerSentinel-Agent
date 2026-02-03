@@ -11,6 +11,7 @@ Usage: streamlit run aistudio_app.py
 import os
 import io
 import json
+import html
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -1027,12 +1028,21 @@ def main():
                         ensemble_agreement = defect_agreement_info.get('agreement', '')
                         grade_range = defect_agreement_info.get('grade_range', '')
 
+                        # Escape HTML in user/API-provided content to prevent raw HTML display
+                        safe_defect_code = html.escape(str(defect.defect_code))
+                        safe_defect_type = html.escape(str(defect.defect_type))
+                        safe_location = html.escape(str(defect.location_in_pipe)) if defect.location_in_pipe else ''
+                        safe_description = html.escape(str(defect.description)) if defect.description else ''
+                        safe_code_desc = html.escape(DEFECT_CODE_DESCRIPTIONS.get(defect.defect_code, defect.defect_type))
+
                         # Build ensemble info line if available
                         ensemble_line = ""
                         if ensemble_agreement and grade_range:
+                            safe_agreement = html.escape(str(ensemble_agreement))
+                            safe_grade_range = html.escape(str(grade_range))
                             ensemble_line = f"""
                             <div style="color: {accent}; font-size: 12px; margin-top: 4px;">
-                                Ensemble Agreement: {ensemble_agreement} | Grade range: {grade_range}
+                                Ensemble Agreement: {safe_agreement} | Grade range: {safe_grade_range}
                             </div>
                             """
 
@@ -1040,16 +1050,16 @@ def main():
                         <div style="background: {card_bg}; padding: 12px 15px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {grade_color}; border: 1px solid {colors['border']};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <span style="color: {grade_color}; font-weight: bold;">{defect.defect_code}</span>
-                                    <span style="color: {text_primary}; margin-left: 8px;">{DEFECT_CODE_DESCRIPTIONS.get(defect.defect_code, defect.defect_type)}</span>
+                                    <span style="color: {grade_color}; font-weight: bold;">{safe_defect_code}</span>
+                                    <span style="color: {text_primary}; margin-left: 8px;">{safe_code_desc}</span>
                                 </div>
                                 <span style="background: {grade_color}; color: white; padding: 2px 10px; border-radius: 4px; font-weight: bold;">Grade {defect.grade}</span>
                             </div>
                             <div style="color: {text_muted}; font-size: 13px; margin-top: 6px;">
-                                📍 {defect.location_in_pipe} | Confidence: {defect.confidence:.0%}
+                                📍 {safe_location} | Confidence: {defect.confidence:.0%}
                             </div>
                             <div style="color: {text_secondary}; font-size: 13px; margin-top: 4px; font-style: italic;">
-                                {defect.description if defect.description else ''}
+                                {safe_description}
                             </div>
                             {ensemble_line}
                         </div>
@@ -1177,10 +1187,11 @@ def main():
                         st.markdown("**Contributing Factors:**")
                         factors_html = ""
                         for i, factor in enumerate(pred.contributing_factors, 1):
+                            safe_factor = html.escape(str(factor))
                             factors_html += f"""
                             <div style="background: {card_bg}; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid {colors['accent']}; border: 1px solid {colors['border']};">
                                 <span style="color: {colors['accent']}; font-weight: bold;">{i}.</span>
-                                <span style="color: {text_primary};">{factor}</span>
+                                <span style="color: {text_primary};">{safe_factor}</span>
                             </div>
                             """
                         st.markdown(factors_html, unsafe_allow_html=True)
@@ -1289,9 +1300,10 @@ def main():
                             emerg_colors = get_theme_colors()
                             st.markdown("**Why emergency repairs cost more:**")
                             for factor in pred.emergency_factors:
+                                safe_factor = html.escape(str(factor))
                                 st.markdown(f"""
                                 <div style="background: {emerg_colors['bg_card_alt']}; padding: 10px 15px; border-radius: 6px; margin: 5px 0; border-left: 3px solid {emerg_colors['danger']}; border: 1px solid {emerg_colors['border']};">
-                                    <span style="color: {emerg_colors['text_primary']};">{factor}</span>
+                                    <span style="color: {emerg_colors['text_primary']};">{safe_factor}</span>
                                 </div>
                                 """, unsafe_allow_html=True)
 
