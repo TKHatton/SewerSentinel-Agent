@@ -1040,11 +1040,7 @@ def main():
                         if ensemble_agreement and grade_range:
                             safe_agreement = html.escape(str(ensemble_agreement))
                             safe_grade_range = html.escape(str(grade_range))
-                            ensemble_line = f"""
-                            <div style="color: {accent}; font-size: 12px; margin-top: 4px;">
-                                Ensemble Agreement: {safe_agreement} | Grade range: {safe_grade_range}
-                            </div>
-                            """
+                            ensemble_line = f'<div style="color: {accent}; font-size: 12px; margin-top: 4px;">Ensemble Agreement: {safe_agreement} | Grade range: {safe_grade_range}</div>'
 
                         st.markdown(f"""
                         <div style="background: {card_bg}; padding: 12px 15px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {grade_color}; border: 1px solid {colors['border']};">
