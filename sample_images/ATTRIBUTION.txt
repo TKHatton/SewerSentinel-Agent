@@ -1,0 +1,32 @@
+SAMPLE IMAGES ATTRIBUTION
+=========================
+
+The sample images in this folder are from the Sewer-ML dataset and are used
+under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License (CC BY-NC-SA 4.0).
+
+LICENSE TERMS
+-------------
+- Attribution: You must give appropriate credit
+- NonCommercial: You may not use the material for commercial purposes
+- ShareAlike: If you redistribute, you must use the same license
+
+Full license: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+REQUIRED CITATION
+-----------------
+Haurum, J.B. and Moeslund, T.B., 2021. Sewer-ML: A Multi-Label Sewer Defect
+Classification Dataset and Benchmark. Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition (CVPR), pp. 13456-13467.
+
+DATASET SOURCE
+--------------
+Sewer-ML Dataset
+Aalborg University, Visual Analysis and Perception (VAP) Lab
+https://vap.aau.dk/sewer-ml/
+
+USAGE NOTICE
+------------
+These sample images are provided solely for demonstration and evaluation
+purposes (e.g., hackathon judging). For access to the full dataset,
+visit the source URL above and complete the access request form.

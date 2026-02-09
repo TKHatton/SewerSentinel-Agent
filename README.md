@@ -4,6 +4,8 @@
 
 **Google DeepMind Gemini 3 Hackathon 2026**
 
+**Live Demo:** [https://sewersentinel-agent.streamlit.app/](https://sewersentinel-agent.streamlit.app/)
+
 SewerSentinel is an AI-powered system that transforms reactive sewer maintenance into proactive infrastructure protection. Using Google's Gemini 3 multimodal capabilities, it analyzes pipe inspection footage, predicts failures before they happen, and generates optimized maintenance schedules.
 
 ### The Problem
@@ -54,15 +56,21 @@ SewerSentinel leverages Gemini 3's most advanced capabilities:
 
 ## Quick Start
 
-### Prerequisites
+### Try the Live Demo
+
+Visit [https://sewersentinel-agent.streamlit.app/](https://sewersentinel-agent.streamlit.app/) to try SewerSentinel immediately - no installation required.
+
+### Local Development
+
+#### Prerequisites
 - Python 3.10+
 - Gemini 3 API access ([Get API Key](https://aistudio.google.com/app/apikey))
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/SewerSentinel-Agent.git
+git clone https://github.com/TKHatton/SewerSentinel-Agent.git
 cd SewerSentinel-Agent
 
 # Run setup script
@@ -73,42 +81,35 @@ chmod +x setup.sh
 export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
-### Running the Application
+#### Running Locally
 
-**Option 1: Streamlit App (Recommended for Demo)**
+**Streamlit App (Recommended)**
 ```bash
-./run.sh streamlit
-# or
 streamlit run aistudio_app.py
 ```
 
-**Option 2: FastAPI Backend**
+**FastAPI Backend**
 ```bash
-./run.sh api
-# or
 python -m uvicorn server:app --reload
-```
-
-**Option 3: Both**
-```bash
-./run.sh both
 ```
 
 ## Project Structure
 
 ```
 SewerSentinel-Agent/
-├── analysis_engine.py      # Core Gemini 3 analysis engine
-├── server.py               # FastAPI REST API server
-├── video_processor.py      # Video frame extraction (OpenCV)
-├── aistudio_app.py         # Streamlit demo app (AI Studio deployment)
-├── Dashboard.jsx           # React dashboard component
-├── requirements.txt        # Python dependencies
-├── setup.sh                # Environment setup script
-├── run.sh                  # Application runner script
-├── architecture.md         # System architecture diagrams
-├── devpost_submission.md   # Hackathon submission text
-└── data/                   # Inspection images (not in repo)
+├── aistudio_app.py                 # Streamlit web application
+├── analysis_engine.py              # Core Gemini 3 analysis engine
+├── server.py                       # FastAPI REST API server
+├── video_processor.py              # Video frame extraction (OpenCV)
+├── sewer_cost_estimation.py        # Cost estimation engine
+├── sewer_sentinel_calibration.py   # PACP calibration module
+├── Dashboard.jsx                   # React dashboard component
+├── architecture.md                 # System architecture diagrams
+├── requirements.txt                # Python dependencies
+├── setup.sh                        # Environment setup script
+├── run.sh                          # Application runner script
+├── sample_images/                  # Sample images for testing
+└── .streamlit/                     # Streamlit configuration
 ```
 
 ## API Endpoints
@@ -148,6 +149,10 @@ SewerSentinel-Agent/
 | 4 | Significant | Repair in 1-2 years |
 | 5 | Critical | Immediate attention |
 
+## Sample Images
+
+Sample sewer inspection images are provided in the `sample_images/` folder for testing and evaluation. These images are from the Sewer-ML dataset and are used under the CC BY-NC-SA 4.0 license. See `sample_images/ATTRIBUTION.txt` for full citation requirements.
+
 ## Dataset
 
 SewerSentinel is designed to work with the [Sewer-ML Dataset](https://vap.aau.dk/sewer-ml/):
@@ -156,7 +161,7 @@ SewerSentinel is designed to work with the [Sewer-ML Dataset](https://vap.aau.dk
 - 9 years of professional annotations
 - 16+ defect classes
 
-The dataset is not included due to size and licensing (CC BY-NC-SA).
+The full dataset is not included due to size and licensing (CC BY-NC-SA).
 
 ## Architecture
 
@@ -176,26 +181,11 @@ The dataset is not included due to size and licensing (CC BY-NC-SA).
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Judging Criteria Alignment
-
-| Criterion | Weight | How SewerSentinel Delivers |
-|-----------|--------|---------------------------|
-| Technical Execution | 40% | Gemini multimodal vision + engineering-based failure prediction |
-| Innovation/Wow | 30% | First system to predict failure timelines, not just detect |
-| Potential Impact | 20% | Prevents catastrophes, saves cities millions |
-| Presentation | 10% | Professional dashboard, clear problem statement |
-
-## Future Vision
-
-SewerSentinel's technology transfers directly to:
-- Levee monitoring
-- Bridge inspection
-- Dam safety
-- Any aging infrastructure with visual inspection records
-
 ## License
 
-MIT License - See LICENSE file
+Copyright (c) 2026 Lenise Kenney. All Rights Reserved.
+
+This software is proprietary. Public visibility is for hackathon evaluation purposes only. See LICENSE file for details.
 
 Dataset usage requires separate license from Aalborg University (CC BY-NC-SA).
 

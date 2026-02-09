@@ -30,12 +30,12 @@ SewerSentinel runs continuously as an autonomous agent—the "marathon agent" ap
 
 ## Testing Instructions (Judges Only)
 
-1. Visit the AI Studio demo link: [INSERT LINK]
+1. Visit the live demo: [https://sewersentinel-agent.streamlit.app/](https://sewersentinel-agent.streamlit.app/)
 2. Upload any pipe inspection image or video
 3. Click "Analyze" to see defect detection and predictions
 4. Explore the priority queue to see how pipes are ranked
 
-Sample test images from Sewer-ML dataset are included in the /data folder.
+Sample test images from Sewer-ML dataset are included in the /sample_images folder.
 
 No login required. All features work without authentication.
 
